@@ -22,6 +22,14 @@ from pydantic import BaseModel, Field, validator
 # Concurrency helper for running blocking calls in threadpool
 from starlette.concurrency import run_in_threadpool
 from datetime import datetime
+import redis
+
+redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
+redis_client = redis.Redis.from_url(redis_url)
+
+# Example usage
+redis_client.set("test", "Hello GutBot!")
+print(redis_client.get("test"))
 
 # Try optional integrations
 fastapi_limiter_available = False
@@ -188,28 +196,55 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+# ---------- Frontend / static files ----------
 FRONTEND_DIR = pathlib.Path(__file__).resolve().parents[1] / "Frontend"
 
+# sanity check: does the frontend folder exist?
+if not FRONTEND_DIR.exists():
+    logger.warning("Frontend directory does not exist: %s. Static file serving will fail until that folder is created.", FRONTEND_DIR)
 
-# Serve static files (CSS, JS, etc.)
-app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+# Prefer to mount the `Frontend/static` folder. If it doesn't exist, fallback to mounting entire Frontend
+STATIC_DIR = FRONTEND_DIR / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+    logger.info("Mounted static directory: %s -> /static", STATIC_DIR)
+else:
+    # If there's no static folder, mount the frontend root as fallback (useful for simple setups).
+    if FRONTEND_DIR.exists():
+        try:
+            app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
+            logger.warning("Static folder not found. Mounted FRONTEND_DIR at /static as a fallback: %s", FRONTEND_DIR)
+        except Exception as e:
+            logger.warning("Could not mount FRONTEND_DIR at /static: %s", e)
+    else:
+        logger.warning("Neither FRONTEND_DIR nor STATIC_DIR exist. Create Frontend/index.html and Frontend/static/ to serve the UI.")
 
-
-
-# Serve index.html at root
+# Serve index.html at root (returns 404 if file missing)
 @app.get("/")
 async def serve_index():
-    return FileResponse(FRONTEND_DIR / "index.html")
+    index_file = FRONTEND_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
+    logger.error("index.html not found at %s", index_file)
+    raise HTTPException(status_code=404, detail="index.html not found")
 
-# Serve chat.html
+# Serve chat page at /chat-page and /chat.html (both routes supported)
 @app.get("/chat-page")
 async def serve_chat():
-    return FileResponse(FRONTEND_DIR / "chat.html")
+    chat_file = FRONTEND_DIR / "chat.html"
+    if chat_file.exists():
+        return FileResponse(chat_file)
+    logger.error("chat.html not found at %s", chat_file)
+    raise HTTPException(status_code=404, detail="chat.html not found")
 
-# Serve chat.html at /chat.html
 @app.get("/chat.html")
 async def serve_chat_html():
-    return FileResponse(FRONTEND_DIR / "chat.html")
+    chat_file = FRONTEND_DIR / "chat.html"
+    if chat_file.exists():
+        return FileResponse(chat_file)
+    logger.error("chat.html not found at %s", chat_file)
+    raise HTTPException(status_code=404, detail="chat.html not found")
+
 
 
 # -------------------- Utilities & dependencies --------------------
