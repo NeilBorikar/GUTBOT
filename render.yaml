@@ -1,0 +1,61 @@
+# ==============================
+# GutBot: Public Health Chatbot
+# World-class Render Blueprint
+# ==============================
+
+services:
+  - type: web
+    name: gutbot-backend
+    env: python
+    plan: free         # ⚡ upgrade to "starter" or higher in future for more power
+    region: India  # 🌍 pick closest to your users (e.g. singapore, oregon, virginia)
+    buildCommand: |
+      pip install --upgrade pip
+      pip install -r requirements.txt
+      python -m spacy download en_core_web_sm
+    startCommand: uvicorn Backend.app:app --host 0.0.0.0 --port $PORT
+
+    # Environment variables (secure, not hard-coded)
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "60"       # 🚦 adjust if needed
+      - key: ALLOWED_HOSTS
+        value: "gutbot.onrender.com,localhost,127.0.0.1"
+      - key: CORS_ORIGINS
+        value: "*"        # 🔒 restrict in production (e.g. gutbot.onrender.com)
+      - key: SENTRY_DSN
+        sync: false       # add later in dashboard if using Sentry
+      - key: REDIS_URL
+        fromService: gutbot-redis:url
+
+    autoDeploy: true   # 🚀 redeploy automatically on git push
+    healthCheckPath: /health
+    healthCheckIntervalSeconds: 30
+    healthCheckTimeoutSeconds: 10
+    healthCheckSuccessThreshold: 2
+    healthCheckFailureThreshold: 3
+
+    # Scaling
+    scaling:
+      minInstances: 1
+      maxInstances: 2   # auto-scale up during hackathon load
+      targetCPUPercent: 80
+
+    # Static frontend mounting (index.html + chat.html + assets)
+    staticPublishPath: ./Frontend
+
+    # Logging
+    disk:
+      name: gutbot-logs
+      mountPath: /var/log/gutbot
+      sizeGB: 1
+
+databases:
+  - name: gutbot-redis
+    plan: free
+    region: India
+    ipAllowList: []   # 🔒 restrict later if needed
