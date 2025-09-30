@@ -1,0 +1,29 @@
+# ---------------- Core Framework ----------------
+fastapi==0.110.0
+uvicorn[standard]==0.29.0
+starlette==0.36.3
+
+# ---------------- Data Validation ----------------
+pydantic==1.10.14
+
+# ---------------- NLP + AI ----------------
+torch==2.2.2
+transformers==4.40.0
+sentence-transformers==2.7.0
+
+# spaCy core + English model (direct install, no runtime download needed)
+spacy==3.7.2
+https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1.tar.gz
+
+# ---------------- Database / Storage ----------------
+redis==5.0.1
+chromadb==0.4.24
+
+# ---------------- Monitoring ----------------
+prometheus-fastapi-instrumentator==6.1.0
+sentry-sdk==1.40.0
+
+# ---------------- Other Utilities ----------------
+python-dotenv==1.0.1
+numpy==1.26.4
+scikit-learn==1.5.1
