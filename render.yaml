@@ -8,7 +8,7 @@ services:
     name: gutbot-backend
     env: python
     plan: free         # ⚡ upgrade to "starter" or higher in future for more power
-    region: India  # 🌍 pick closest to your users (e.g. singapore, oregon, virginia)
+    region: oregon # 🌍 pick closest to your users (e.g. singapore, oregon, virginia)
     buildCommand: |
       pip install --upgrade pip
       pip install -r requirements.txt
@@ -57,5 +57,6 @@ services:
 databases:
   - name: gutbot-redis
     plan: free
-    region: India
+    region: oregon
     ipAllowList: []   # 🔒 restrict later if needed
+
