@@ -13,7 +13,7 @@ services:
     plan: free                 # ⚡ upgrade to starter/pro for higher performance
     region: oregon             # 🌍 change to "singapore" if Asia audience
 
-    rootDir: ./public_health_chatbot   # ✅ enter the folder where Backend + Frontend + requirements.txt live
+    rootDir: .                 # ✅ since your app & requirements.txt are in repo root
 
     buildCommand: |
       pip install --upgrade pip
@@ -21,14 +21,10 @@ services:
       # Ensure SpaCy model exists (required by healthbot.py)
       python -m spacy download en_core_web_sm
 
-    startCommand: uvicorn Backend.app:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
 
     # 🔑 Environment variables (safe, editable in Render dashboard)
     envVars:
-      
-      - key: REDIS_URL
-        value: "redis://red-d3e1onvdiees73fpq430:6379"
-
       - key: ENVIRONMENT
         value: production
       - key: LOG_LEVEL
