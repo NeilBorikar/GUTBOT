@@ -1,0 +1,46 @@
+# ==========================
+# Python / FastAPI / GutBot
+# ==========================
+
+# Virtual environments
+venv/
+Backend/venv/
+.env
+.venv/
+
+# Logs
+*.log
+logs/
+
+# Cache + compiled Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+
+# Models (large files, use Git LFS instead)
+*.bin
+*.pt
+*.dll
+*.lib
+
+# Data / temporary outputs
+data/
+medical_data/
+training_data/
+models/
+*.csv
+
+# Editor/IDE junk
+.vscode/
+.idea/
+*.swp
+
+# Render/Deployment junk
+*.db
+*.sqlite3
+
+# Mac/Linux OS files
+.DS_Store
+Thumbs.db
