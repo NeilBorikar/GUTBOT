@@ -10,8 +10,8 @@ services:
   - type: web
     name: GUTBOT               # ✅ your app name will be https://gutbot.onrender.com
     env: python
-    plan: free                 # ⚡ upgrade to starter/pro for higher performance
-    region: oregon             # 🌍 change to "singapore" if Asia audience
+    plan: free
+    region: singapore          # 🌍 use singapore (closest to India)
 
     rootDir: .                 # ✅ since your app & requirements.txt are in repo root
 
@@ -30,13 +30,13 @@ services:
       - key: LOG_LEVEL
         value: info
       - key: RATE_LIMIT_PER_MINUTE
-        value: "60"        # 🚦 adjust depending on load
+        value: "60"
       - key: ALLOWED_HOSTS
         value: "gutbot.onrender.com,localhost,127.0.0.1"
       - key: CORS_ORIGINS
-        value: "*"         # 🔒 tighten in production: e.g. https://gutbot.onrender.com
+        value: "*"
       - key: SENTRY_DSN
-        sync: false        # 🎯 connect later for error monitoring
+        sync: false
       - key: REDIS_URL
         fromService: gutbot-redis:url
 
@@ -50,14 +50,14 @@ services:
     # 📈 Scaling rules
     scaling:
       minInstances: 1
-      maxInstances: 2       # auto-scale under load
-      targetCPUPercent: 75  # keep CPU <75% per instance
+      maxInstances: 2
+      targetCPUPercent: 75
 
     # --------------------------
     # Frontend hosting (chat UI)
     # --------------------------
-    staticPublishPath: ./Frontend
-    autoDeploy: true        # 🚀 redeploy automatically on every git push
+    staticPublishPath: .        # ✅ root, since HTML is in repo root
+    autoDeploy: true
 
     # 🗂 Logging (persistent)
     disk:
@@ -71,5 +71,5 @@ services:
 databases:
   - name: gutbot-redis
     plan: free
-    region: oregon
-    ipAllowList: []         # 🔒 keep empty (public access disabled by default)
+    region: singapore
+    ipAllowList: []
