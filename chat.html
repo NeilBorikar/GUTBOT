@@ -3,258 +3,435 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GutBot — Conversation</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <title>GUTBOT — Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+
   <style>
-    :root{
-      --bg:#f6f9ff;
-      --surface:rgba(255,255,255,0.98);
-      --muted:#566276;
-      --ink:#071227;
-      --accent:#0b76d1;
-      --accent-2:#7c4dff;
-      --green:#00c48c;
-      --glass-border:rgba(11,118,209,0.05);
-      --glass-shadow:0 18px 50px rgba(12,34,64,0.06);
-      --radius:14px;
-      --focus:3px solid rgba(11,118,209,0.12);
-      --ease:cubic-bezier(.2,.9,.2,1);
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #E6FAF8, #D7EEFB);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
     }
 
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%}
-    body{font-family:'Space Grotesk',system-ui,-apple-system,Segoe UI,Roboto,Arial;color:var(--ink);min-height:100vh;background:linear-gradient(180deg,var(--bg),#fff);display:flex;flex-direction:column}
+    /* Top bar */
+    .top-bar {
+      background: #ffffffcc;
+      backdrop-filter: blur(6px);
+      padding: 14px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
 
-    .skip{position:absolute;left:-9999px}
-    .skip:focus{left:18px;top:18px;padding:8px;background:white;border-radius:8px;box-shadow:var(--glass-shadow)}
+    .top-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
 
-    header{display:flex;align-items:center;gap:14px;padding:16px 22px;background:var(--surface);border-bottom:1px solid var(--glass-border);box-shadow:var(--glass-shadow)}
-    .logo{width:52px;height:52px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:900}
-    header h1{font-family:'Outfit';font-size:18px;font-weight:800}
+    .top-left img {
+      width: 38px;
+      height: 38px;
+    }
 
-    .stage{display:grid;grid-template-columns:320px 1fr;gap:22px;padding:22px;flex:1;align-items:start}
+    .top-left h2 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.3rem;
+      color: #0E2A47;
+      margin: 0;
+    }
 
-    .left{background:var(--surface);border-radius:12px;padding:14px;border:1px solid var(--glass-border);box-shadow:var(--glass-shadow)}
-    .profile{display:flex;gap:12px;align-items:center}
-    .avatar{width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:900}
-    .pill{padding:10px;border-radius:10px;background:white;border:1px solid rgba(10,10,20,0.03);cursor:pointer}
+    .top-right {
+      font-size: 1.4rem;
+    }
 
-    .chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 140px)}
-    .messages{flex:1;overflow:auto;padding:22px;display:flex;flex-direction:column;gap:14px;border-radius:12px;background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid var(--glass-border);box-shadow:0 10px 30px rgba(11,24,40,0.03)}
+    /* Chat area */
+    .chat-area {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      scroll-behavior: smooth;
+    }
 
-    .msg{max-width:78%;padding:14px 16px;border-radius:18px;font-size:15px;line-height:1.45;box-shadow:0 10px 30px rgba(16,24,40,0.04)}
-    .bot{align-self:flex-start;background:linear-gradient(180deg,#fff,rgba(250,250,255,0.98));border:1px solid rgba(10,10,20,0.03);color:var(--ink)}
-    .user{align-self:flex-end;background:linear-gradient(90deg,var(--accent),#2aa6ff);color:white;border:0}
+    .message {
+      max-width: 80%;
+      margin-bottom: 14px;
+      padding: 14px 18px;
+      border-radius: 18px;
+      animation: fadeInUp 0.4s ease;
+      line-height: 1.5;
+      word-wrap: break-word;
+      font-size: 1rem;
+    }
 
-    .meta{font-size:12px;color:var(--muted);margin-top:8px;text-align:right}
+    .bot {
+      background: #D7F5E9;
+      align-self: flex-start;
+      color: #0E2A47;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    }
 
-    .typing{display:flex;gap:8px;align-items:center}
-    .dot{width:9px;height:9px;border-radius:50%;background:rgba(11,118,209,0.18);animation:dot 1.2s infinite}
+    .user {
+      background: #CBE3F3;
+      align-self: flex-end;
+      color: #0E2A47;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      align-self: flex-start;
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(82, 167, 217, 0.6);
+      animation: dot 1.2s infinite;
+    }
     .dot:nth-child(2){animation-delay:.12s}
     .dot:nth-child(3){animation-delay:.24s}
     @keyframes dot{0%{transform:translateY(0)}50%{transform:translateY(-6px)}100%{transform:translateY(0)}}
 
-    .composer{display:flex;gap:12px;padding:14px;border-radius:14px;background:var(--surface);align-items:center;border:1px solid var(--glass-border);margin-top:12px}
-    .composer input{flex:1;padding:12px 14px;border-radius:12px;border:1px solid rgba(10,10,20,0.03);background:white;font-size:15px}
-    .composer input:focus{outline:var(--focus)}
-    .mic{border:0;background:transparent;padding:8px;border-radius:10px;cursor:pointer}
-    .send{background:linear-gradient(90deg,var(--accent),#2aa6ff);color:white;padding:10px 14px;border-radius:12px;border:0;font-weight:800;cursor:pointer}
+    /* Input bar */
+    .input-bar {
+      display: flex;
+      align-items: center;
+      padding: 12px;
+      background: #ffffffcc;
+      backdrop-filter: blur(6px);
+      border-top: 1px solid #cfe5ef;
+    }
 
-    /* background "photo" strip at top of chat for context (health images-looking SVG tiles) */
-    .photo-strip{position:fixed;left:0;right:0;top:68px;height:110px;pointer-events:none;z-index:-3;opacity:0.18}
-    .photo-strip svg{width:100%;height:100%;display:block}
+    .input-bar input {
+      flex: 1;
+      padding: 12px 18px;
+      border: 1px solid #a7d9cb;
+      border-radius: 30px;
+      outline: none;
+      font-size: 1rem;
+      transition: 0.2s ease;
+    }
 
-    .judge-cta{display:none} /* kept to ensure compatibility with previous logic but hidden */
+    .input-bar input:focus {
+      border-color: #52A7D9;
+      box-shadow: 0 0 6px rgba(82, 167, 217, 0.3);
+    }
 
-    .blob{position:fixed;border-radius:50%;filter:blur(56px);opacity:0.12;pointer-events:none}
-    .blob.l{width:360px;height:360px;left:-120px;top:22%;background:linear-gradient(135deg,var(--accent),var(--accent-2))}
-    .blob.r{width:280px;height:280px;right:-100px;bottom:6%;background:linear-gradient(135deg,#00d38a,rgba(11,118,209,0.08))}
+    .input-buttons {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-left: 8px;
+    }
 
-    @media (max-width:980px){.stage{grid-template-columns:1fr}.blob{display:none}.photo-strip{display:none}}
-    @media (prefers-reduced-motion:reduce){.dot{animation:none}.blob{display:none}.photo-strip{opacity:0.05}}
+    .send-btn, .mic-btn {
+      background: #6CC7A1;
+      color: white;
+      border: none;
+      width: 46px;
+      height: 46px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+    }
+
+    .send-btn:hover, .mic-btn:hover {
+      background: #52A7D9;
+      transform: scale(1.1);
+    }
+
+    .mic-btn.listening {
+      background: #FF4B4B;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.4); }
+      70% { box-shadow: 0 0 0 15px rgba(255, 75, 75, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(255, 75, 75, 0); }
+    }
+
+    /* Scrollbar styling */
+    .chat-area::-webkit-scrollbar {
+      width: 6px;
+    }
+    .chat-area::-webkit-scrollbar-thumb {
+      background-color: rgba(0,0,0,0.2);
+      border-radius: 6px;
+    }
   </style>
+
+  <script>
+    window.GUTBOT_CONFIG = {
+      API_BASE: "{{BACKEND_URL}}",
+      API_KEY: ""
+    };
+  </script>
 </head>
+
 <body>
-  <a class="skip" href="#messages">Skip to messages</a>
 
-  <!-- soft top photo-strip (SVG collage feel like photos) -->
-  <div class="photo-strip" aria-hidden="true">
-    <svg viewBox="0 0 1600 110" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id="pg1" x1="0" x2="1"><stop offset="0" stop-color="#0b76d1"/><stop offset="1" stop-color="#7c4dff"/></linearGradient>
-      </defs>
-      <g transform="translate(0,0)">
-        <rect x="40" y="10" rx="10" ry="10" width="220" height="90" fill="#ffffff" stroke="rgba(10,10,20,0.02)"/>
-        <g transform="translate(60,30)" fill="#0b76d1"><circle cx="18" cy="18" r="18"/></g>
-        <rect x="300" y="10" rx="10" ry="10" width="220" height="90" fill="#ffffff" stroke="rgba(10,10,20,0.02)"/>
-        <g transform="translate(320,30)" fill="#00c48c"><circle cx="18" cy="18" r="18"/></g>
-
-        <rect x="820" y="10" rx="10" ry="10" width="260" height="90" fill="#ffffff" stroke="rgba(10,10,20,0.02)"/>
-        <g transform="translate(840,30)" fill="#7c4dff"><circle cx="18" cy="18" r="18"/></g>
-      </g>
-    </svg>
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="top-left">
+      <img src="your-logo.png" alt="GUTBOT Logo">
+      <h2>GUTBOT</h2>
+    </div>
+    <div class="top-right">🤖</div>
   </div>
 
-  <header>
-    <div class="logo" aria-hidden="true">G</div>
-    <div>
-      <h1 style="margin:0;line-height:1">GutBot</h1>
-      <small style="color:var(--muted)">Transcendent Health Interface</small>
+  <!-- Chat Area -->
+  <div class="chat-area" id="messages">
+    <div class="message bot">Hi 👋 I'm GutBot — here to help with your health. How are you feeling today?</div>
+    <div id="typing" class="typing" style="display:none;">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
     </div>
-  </header>
+  </div>
 
-  <main class="stage" role="main">
-    <aside class="left" aria-label="Shortcuts">
-      <div class="profile">
-        <div class="avatar">G</div>
-        <div>
-          <div style="font-weight:800">Guest User</div>
-          <small style="color:var(--muted)">Voice • Session Notes</small>
-        </div>
-      </div>
+  <!-- Input Bar -->
+  <div class="input-bar">
+    <input type="text" id="userInput" placeholder="Type or speak your question..." autocomplete="off">
+    <div class="input-buttons">
+      <button class="mic-btn" id="micButton" title="Voice input">🎤</button>
+      <button class="send-btn" id="sendButton" title="Send">➤</button>
+    </div>
+  </div>
 
-      <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
-        <button class="pill">New Consultation</button>
-        <button class="pill">Saved Sessions</button>
-        <button class="pill">Export Notes</button>
-      </div>
+  <!-- JS Logic (original integrations preserved) -->
+  <script>
+  (function () {
+    'use strict';
 
-      <div style="margin-top:14px;font-size:13px;color:var(--muted)">
-        Tip: Press <strong>Ctrl/Cmd + K</strong> for quick actions.
-      </div>
-    </aside>
+    const CONFIG = window.GUTBOT_CONFIG || {};
+    const PLACEHOLDER = "{{BACKEND_URL}}";
+    const apiBase = (
+      CONFIG.API_BASE && CONFIG.API_BASE !== PLACEHOLDER
+        ? CONFIG.API_BASE.replace(/\/$/, '')
+        : ''
+    ).trim();
+    const apiKey = (CONFIG.API_KEY || '').trim();
 
-    <section class="chat-wrap" aria-label="Conversation area">
-      <div id="messages" class="messages" aria-live="polite">
-        <div class="msg bot">Hello! I'm your GutBot — here to help with digestion, symptoms and gentle advice.<div class="meta">12:45 PM</div></div>
-        <div class="msg bot">How are you feeling today? Describe any symptoms or concerns.<div class="meta">12:46 PM</div></div>
-        <div class="msg user">I've been having some stomach discomfort after meals.<div class="meta">12:47 PM</div></div>
+    const userInput = document.getElementById('userInput');
+    const sendButton = document.getElementById('sendButton');
+    const micButton = document.getElementById('micButton');
+    const messages = document.getElementById('messages');
+    const typing = document.getElementById('typing');
 
-        <div id="typing" class="msg bot" style="display:none">
-          <div class="typing">
-            <div class="dot"></div>
-            <div class="dot"></div>
-            <div class="dot"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="composer" role="region" aria-label="Message composer">
-        <input id="userInput" placeholder="Type your health question or symptom..." aria-label="Message input" autocomplete="off">
-        <button id="micButton" class="mic" aria-label="Voice input">🎤</button>
-        <button id="sendButton" class="send" aria-label="Send message">Send</button>
-      </div>
-    </section>
-  </main>
-
-  <div class="blob l" aria-hidden="true"></div>
-  <div class="blob r" aria-hidden="true"></div>
-
- <script>
-document.addEventListener('DOMContentLoaded', function(){
-  const userInput = document.getElementById('userInput');
-  const sendButton = document.getElementById('sendButton');
-  const micButton = document.getElementById('micButton');
-  const messages = document.getElementById('messages');
-  const typing = document.getElementById('typing');
-
-  if(userInput) userInput.focus();
-
-  function timestamp(){
-    const now = new Date();
-    let hrs = now.getHours();
-    const ampm = hrs >= 12 ? 'PM' : 'AM';
-    hrs = hrs % 12 || 12;
-    let mins = now.getMinutes();
-    mins = mins < 10 ? '0'+mins : mins;
-    return `${hrs}:${mins} ${ampm}`;
-  }
-
-  function addMessage(text, isUser=false){
-    const div = document.createElement('div');
-    div.className = 'msg ' + (isUser ? 'user' : 'bot');
-    div.innerHTML = `${text}<div class="meta">${timestamp()}</div>`;
-    messages.insertBefore(div, typing);
-    scrollIfNearBottom();
-  }
-
-  function scrollIfNearBottom(){
-    const nearEnd = messages.scrollHeight - messages.scrollTop <= messages.clientHeight + 120;
-    if(nearEnd) messages.scrollTo({ top: messages.scrollHeight, behavior: 'smooth' });
-  }
-
-  async function sendToBackend(msg){
-    typing.style.display = 'block';
-    scrollIfNearBottom();
-
-    try {
-      const response = await fetch("/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: msg })
-      });
-
-      const data = await response.json();
-      typing.style.display = 'none';
-
-      if(data && data.response){
-      addMessage(data.response, false);
-      } else {
-      addMessage("⚠️ Sorry, I couldn’t understand the response.", false);
-      }
-
-    } catch (err) {
-      typing.style.display = 'none';
-      addMessage("❌ Server error. Please try again later.", false);
-      console.error(err);
+    // Session
+    function genSessionId() {
+      return 'sess-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e9).toString(36);
     }
-  }
+    const SESSION_KEY = 'gutbot_session_id';
+    let sessionId = localStorage.getItem(SESSION_KEY) || null;
+    if (!sessionId) {
+      sessionId = genSessionId();
+      localStorage.setItem(SESSION_KEY, sessionId);
+    }
 
-  if(sendButton && userInput){
+    // Utilities
+    function timestamp(){
+      const now = new Date();
+      let hrs = now.getHours();
+      const ampm = hrs >= 12 ? 'PM' : 'AM';
+      hrs = hrs % 12 || 12;
+      let mins = now.getMinutes();
+      mins = mins < 10 ? '0'+mins : mins;
+      return `${hrs}:${mins} ${ampm}`;
+    }
+
+    function renderSafeHtmlFromText(text) {
+      const escaped = String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+      return escaped.replace(/\n/g, '<br>');
+    }
+
+    function addMessage(text, isUser=false){
+      const wrapper = document.createElement('div');
+      wrapper.className = 'message ' + (isUser ? 'user' : 'bot');
+      wrapper.innerHTML = renderSafeHtmlFromText(text);
+      messages.insertBefore(wrapper, typing);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function showTyping(show){
+      typing.style.display = show ? 'flex' : 'none';
+    }
+
+    function setBusy(isBusy){
+      if (isBusy) {
+        userInput.setAttribute('disabled', 'disabled');
+        sendButton.setAttribute('disabled', 'disabled');
+        sendButton.style.opacity = '0.6';
+      } else {
+        userInput.removeAttribute('disabled');
+        sendButton.removeAttribute('disabled');
+        sendButton.style.opacity = '';
+        userInput.focus();
+      }
+    }
+
+    // Networking
+    function fetchWithTimeout(resource, options = {}, timeout = 20000) {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeout);
+      options.signal = controller.signal;
+      return fetch(resource, options).finally(() => clearTimeout(id));
+    }
+
+    async function postJsonWithRetries(url, body, maxAttempts = 3) {
+      let attempt = 0;
+      let wait = 500;
+      while (attempt < maxAttempts) {
+        attempt++;
+        try {
+          const headers = { "Content-Type": "application/json" };
+          if (apiKey) headers["X-API-Key"] = apiKey;
+          const res = await fetchWithTimeout(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify(body)
+          }, 20000);
+          if (!res.ok) {
+            if (res.status >= 500 || res.status === 429) {
+              const text = await res.text().catch(()=> '');
+              throw { transient: true, status: res.status, payload: text };
+            } else {
+              const json = await res.json().catch(()=>null);
+              throw { transient: false, status: res.status, payload: json || text || `HTTP ${res.status}` };
+            }
+          }
+          const data = await res.json().catch(()=>null);
+          return { ok: true, data };
+        } catch (err) {
+          const isAbort = (err && err.name === 'AbortError') || (err && err.type === 'aborted');
+          if (isAbort || (err && (err.transient || err instanceof TypeError))) {
+            if (attempt < maxAttempts) {
+              await new Promise(r => setTimeout(r, wait));
+              wait *= 2;
+              continue;
+            } else {
+              return { ok: false, error: 'network_timeout_or_unreachable' };
+            }
+          } else {
+            return { ok: false, error: err };
+          }
+        }
+      }
+      return { ok: false, error: 'unknown' };
+    }
+
+    async function sendToBackend(msg) {
+      showTyping(true);
+      setBusy(true);
+
+      const endpoint = (apiBase || '') + '/chat';
+      const payload = { message: msg, session_id: sessionId };
+
+      try {
+        const result = await postJsonWithRetries(endpoint, payload, 3);
+        showTyping(false);
+        setBusy(false);
+        if (result.ok && result.data) {
+          const resp = result.data.response || result.data.reply || (typeof result.data === 'string' ? result.data : null);
+          if (resp) {
+            addMessage(resp, false);
+          } else {
+            addMessage("⚠️ Unexpected server response.", false);
+          }
+        } else {
+          if (result.error && typeof result.error === 'object' && result.error.status === 401) {
+            addMessage("🔒 Authentication required (invalid API key).", false);
+          } else if (result.error === 'network_timeout_or_unreachable') {
+            addMessage("❌ Network timeout or server unreachable.", false);
+          } else {
+            const errMsg = (result.error && (result.error.payload || result.error)) || "Server error.";
+            addMessage("❌ " + String(errMsg), false);
+          }
+        }
+      } catch (err) {
+        showTyping(false);
+        setBusy(false);
+        addMessage("❌ Unexpected error while sending message.", false);
+        console.error(err);
+      }
+    }
+
+    // UI events
     sendButton.addEventListener('click', function(){
-      const msg = userInput.value.trim();
-      if(!msg) return;
+      const raw = userInput.value || '';
+      const msg = raw.trim();
+      if (!msg) return;
       addMessage(msg, true);
       userInput.value = '';
-      userInput.focus();
       sendToBackend(msg);
     });
-  }
 
-  if(userInput){
     userInput.addEventListener('keypress', function(e){
-      if(e.key === 'Enter') sendButton.click();
-    });
-  }
-
-  // 🎤 Speech recognition (unchanged)
-  let recognition = null;
-  if(('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window)){
-    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-US';
-    recognition.onresult = function(event){
-      const transcript = event.results[0][0].transcript;
-      if(userInput) userInput.value = transcript;
-      micButton.classList.remove('listening');
-    };
-    recognition.onerror = function(){ micButton.classList.remove('listening'); };
-    recognition.onend = function(){ micButton.classList.remove('listening'); };
-
-    micButton.addEventListener('click', function(){
-      if(micButton.classList.contains('listening')){
-        recognition.stop();
-        micButton.classList.remove('listening');
-      } else {
-        recognition.start();
-        micButton.classList.add('listening');
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendButton.click();
       }
     });
-  } else {
-    if(micButton) micButton.style.display = 'none';
-  }
 
-  // Pointer parallax, quick actions, reduced motion → unchanged
-});
-</script>
+    // Speech Recognition
+    let recognition = null;
+    if(('SpeechRecognition' in window) || ('webkitSpeechRecognition' in window)){
+      recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+      recognition.onresult = function(event){
+        const transcript = event.results[0][0].transcript;
+        if(userInput) userInput.value = transcript;
+        micButton.classList.remove('listening');
+      };
+      recognition.onerror = function(){ micButton.classList.remove('listening'); };
+      recognition.onend = function(){ micButton.classList.remove('listening'); };
+
+      micButton.addEventListener('click', function(){
+        if(micButton.classList.contains('listening')){
+          recognition.stop();
+          micButton.classList.remove('listening');
+        } else {
+          recognition.start();
+          micButton.classList.add('listening');
+        }
+      });
+    } else {
+      micButton.style.display = 'none';
+    }
+
+    console.info('GutBot chat initialized', { apiBase, sessionId });
+  })();
+  </script>
+</body>
+</html>
