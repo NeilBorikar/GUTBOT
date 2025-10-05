@@ -3,235 +3,219 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>GutBot — Transcendent Health</title>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <title>GUTBOT — Transcendent Health</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+
   <style>
-    :root{
-      --bg-1:#fbfdff;
-      --bg-2:#f2f8ff;
-      --card:#ffffffef;
-      --muted:#60707f;
-      --ink:#071227;
-      --accent:#0b76d1;
-      --accent-2:#7c4dff;
-      --green:#00c48c;
-      --glass-shadow: 0 26px 80px rgba(12,34,64,0.06);
-      --glass-border: rgba(11,118,209,0.06);
-      --radius-xl:26px;
-      --focus:3px solid rgba(11,118,209,0.12);
-      --ease:cubic-bezier(.2,.9,.2,1);
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
     }
 
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%}
-    body{
-      font-family:'Space Grotesk',system-ui,-apple-system,Segoe UI,Roboto,Arial;
-      background:linear-gradient(180deg,var(--bg-1),var(--bg-2) 45%);
-      color:var(--ink);
-      -webkit-font-smoothing:antialiased;
-      -moz-osx-font-smoothing:grayscale;
-      min-height:100vh;
-      display:flex;align-items:center;justify-content:center;padding:48px;
-      overflow-x:hidden;
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #E6FAF8, #D7EEFB);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      overflow-x: hidden;
+      animation: fadeIn 1.2s ease-in;
     }
 
-    /* Skip link */
-    .skip{position:absolute;left:-9999px}
-    .skip:focus{left:18px;top:18px;padding:8px;background:var(--card);border-radius:8px;box-shadow:var(--glass-shadow)}
-
-    /* layout */
-    .wrap{width:100%;max-width:1200px;display:grid;grid-template-columns:1fr 480px;gap:32px;align-items:stretch}
-
-    /* background collage (photo-like SVG frames & icons) */
-    .bg-canvas{
-      position:fixed;inset:0;z-index:-2;pointer-events:none;
-      background:radial-gradient(circle at 10% 20%, rgba(11,118,209,0.06), transparent 6%),
-                 radial-gradient(circle at 85% 80%, rgba(124,77,255,0.04), transparent 6%);
-      overflow:hidden;
+    .skip {
+      position: absolute;
+      left: -9999px;
     }
-    svg.bg-illu{width:100%;height:100%;display:block}
-
-    /* hero card */
-    .hero{
-      position:relative;background:var(--card);border-radius:var(--radius-xl);padding:42px;border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);overflow:visible;
-      isolation:isolate;
+    .skip:focus {
+      left: 18px;
+      top: 18px;
+      padding: 8px;
+      background: #ffffffcc;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
     }
 
-    .logo{width:72px;height:72px;border-radius:18px;background:linear-gradient(135deg,var(--accent),var(--accent-2));display:grid;place-items:center;color:white;font-weight:900;font-size:26px;box-shadow:0 14px 36px rgba(11,118,209,0.12);transition:transform .5s var(--ease);transform-origin:center}
-    .brand{display:flex;gap:18px;align-items:center}
-    .title{font-family:'Outfit';font-weight:900;font-size:42px;color:var(--ink)}
-    .subtitle{color:var(--muted);margin-top:6px}
-
-    .lead{margin-top:16px;color:#153046;max-width:66ch;font-size:16px}
-    .cta-row{display:flex;gap:12px;margin-top:22px}
-    .btn{padding:12px 16px;border-radius:14px;border:0;font-weight:900;cursor:pointer;display:inline-flex;align-items:center;gap:10px}
-    .btn.primary{background:linear-gradient(90deg,var(--accent),#03a9f4);color:white;box-shadow:0 20px 48px rgba(11,118,209,0.12)}
-    .btn.ghost{background:white;border:1px solid rgba(10,10,30,0.04);color:var(--accent-2)}
-
-    .features{display:flex;gap:10px;margin-top:20px}
-    .feature{background:linear-gradient(180deg,#ffffff,#fbfdff);padding:10px;border-radius:12px;border:1px solid rgba(10,10,20,0.03);font-weight:800;color:#0b2540}
-
-    /* preview panel */
-    .panel{background:linear-gradient(180deg,#fff,rgba(255,255,255,0.98));border-radius:20px;padding:18px;border:1px solid var(--glass-border);box-shadow:0 20px 60px rgba(12,34,64,0.06)}
-    .mini-chat{margin-top:12px;border-radius:12px;padding:12px;background:linear-gradient(180deg,#f8fbff,white);display:flex;flex-direction:column;gap:10px;border:1px solid rgba(10,10,20,0.02)}
-
-    .bubble{padding:10px 12px;border-radius:12px;font-size:14px;max-width:78%}
-    .bubble.bot{background:linear-gradient(180deg,#fff,rgba(255,255,255,0.98));border:1px solid rgba(10,10,20,0.03)}
-    .bubble.user{background:linear-gradient(90deg,var(--accent),#2aa6ff);color:white;align-self:flex-end}
-
-    /* floating small photo frames (interactive) */
-    .frame{position:absolute;width:160px;height:110px;border-radius:12px;overflow:hidden;box-shadow:0 18px 48px rgba(2,6,23,0.08);border:1px solid rgba(255,255,255,0.25);background:linear-gradient(180deg,#ffffff66,#ffffff88);backdrop-filter:blur(6px);transform:translate3d(0,0,0)}
-    .frame .photo{width:100%;height:100%;display:grid;place-items:center;font-weight:800;color:white;font-size:14px}
-    .frame .photo svg{width:48px;height:48px;opacity:0.95}
-
-    .frame.a{left:-40px;top:-40px;transform:translateZ(0) rotate(-6deg);animation:floatA 9s var(--ease) infinite}
-    .frame.b{right:-40px;bottom:-40px;transform:translateZ(0) rotate(8deg);animation:floatB 12s var(--ease) infinite}
-
-    @keyframes floatA{0%{transform:translateY(0) rotate(-6deg)}50%{transform:translateY(-12px) rotate(-4deg)}100%{transform:translateY(0) rotate(-6deg)}}
-    @keyframes floatB{0%{transform:translateY(0) rotate(8deg)}50%{transform:translateY(-14px) rotate(6deg)}100%{transform:translateY(0) rotate(8deg)}}
-
-    /* accessibility */
-    @media (prefers-reduced-motion:reduce){
-      .frame{animation:none}
-      .logo{transition:none}
+    .logo {
+      width: 160px;
+      margin-bottom: 20px;
+      animation: fadeIn 1.5s ease-in-out;
     }
 
-    /* responsive */
-    @media (max-width:1060px){.wrap{grid-template-columns:1fr}.frame{display:none}.title{font-size:32px}}
+    .title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: #0E2A47;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      color: #3A6B77;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      animation: slideUp 0.8s ease forwards;
+      opacity: 0;
+      animation-delay: 0.3s;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    .btn {
+      background-color: #6CC7A1;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      padding: 12px 28px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background-color: #52A7D9;
+      transform: scale(1.05);
+      animation: bounce 0.4s ease;
+    }
+
+    .start::before { content: "💬"; }
+    .db::before { content: "🧠"; }
+    .faq::before { content: "❓"; }
+
+    footer {
+      margin-top: 40px;
+      color: #5F7E8E;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes bounce {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    /* Floating decorative elements */
+    .floating {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .floating.a {
+      width: 300px;
+      height: 300px;
+      top: -60px;
+      left: -60px;
+      background: linear-gradient(135deg, #6CC7A1, #52A7D9);
+    }
+    .floating.b {
+      width: 280px;
+      height: 280px;
+      bottom: -60px;
+      right: -60px;
+      background: linear-gradient(135deg, #7c4dff, #03a9f4);
+    }
+
+    @media (max-width: 600px) {
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .button-group {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .title {
+        font-size: 1.8rem;
+      }
+
+      .subtitle {
+        font-size: 0.95rem;
+      }
+    }
   </style>
 </head>
+
 <body>
   <a class="skip" href="#main">Skip to content</a>
 
-  <!-- Animated background collage (SVG icons & soft photo-rects) -->
-  <div class="bg-canvas" aria-hidden="true">
-    <svg class="bg-illu" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="img">
-      <defs>
-        <linearGradient id="gA" x1="0" x2="1"><stop offset="0" stop-color="#0b76d1" stop-opacity="0.15"/><stop offset="1" stop-color="#7c4dff" stop-opacity="0.12"/></linearGradient>
-        <linearGradient id="gB" x1="0" x2="1"><stop offset="0" stop-color="#00c48c" stop-opacity="0.12"/><stop offset="1" stop-color="#0b76d1" stop-opacity="0.08"/></linearGradient>
-      </defs>
+  <div class="floating a"></div>
+  <div class="floating b"></div>
 
-      <!-- large soft blobs -->
-      <circle cx="120" cy="120" r="200" fill="url(#gA)"/>
-      <circle cx="1500" cy="700" r="260" fill="url(#gB)"/>
+  <img src="your-logo.png" alt="GUTBOT Logo" class="logo">
 
-      <!-- small photo-like rectangles with health icons -->
-      <g transform="translate(120,60) rotate(-6)">
-        <rect x="0" y="0" rx="14" ry="14" width="240" height="160" fill="#fff" stroke="rgba(255,255,255,0.06)"/>
-        <g transform="translate(30,30)" fill="#0b76d1">
-          <circle cx="20" cy="20" r="20" fill="#0b76d1"/>
-          <text x="60" y="28" font-size="22" fill="#0f1724" font-family="Space Grotesk">Nutrition</text>
-        </g>
-      </g>
+  <h1 class="title" id="main">Welcome to GUTBOT</h1>
+  <p class="subtitle">Your friendly health companion</p>
 
-      <g transform="translate(980,420) rotate(6)">
-        <rect x="0" y="0" rx="14" ry="14" width="220" height="140" fill="#fff" stroke="rgba(255,255,255,0.06)"/>
-        <g transform="translate(22,26)">
-          <!-- stethoscope icon -->
-          <path d="M20 10 C20 4 26 4 26 10 L26 26" stroke="#7c4dff" stroke-width="3" fill="none" stroke-linecap="round"/>
-          <circle cx="18" cy="36" r="8" stroke="#7c4dff" stroke-width="3" fill="none"/>
-          <text x="54" y="34" font-size="20" fill="#0f1724" font-family="Space Grotesk">Checkup</text>
-        </g>
-      </g>
-
-      <!-- repeating subtle patterns (gut icon simplified) -->
-      <g transform="translate(520,260) rotate(-3)" fill="#00c48c" opacity="0.18">
-        <ellipse cx="0" cy="0" rx="120" ry="60"/>
-      </g>
-    </svg>
+  <div class="button-group">
+    <a href="/chat-page"><button class="btn start">Start Consultation</button></a>
+    <button class="btn db" id="dbOpen">Open Bio-Database</button>
+    <a href="faq.html"><button class="btn faq">FAQ</button></a>
   </div>
 
-  <div class="wrap" id="main">
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="brand">
-        <div class="logo" aria-hidden="true">G</div>
-        <div>
-          <h1 id="hero-title" class="title">GutBot — Transcendent Health</h1>
-          <div class="subtitle">Explainable digestive guidance — compassionate, practical, global-ready.</div>
-        </div>
-      </div>
-
-      <p class="lead">GutBot listens to symptoms, suggests evidence-aware dietary or lifestyle adjustments, records session notes, and supports voice input. Built for clarity, accessibility, and trust.</p>
-
-      <div class="cta-row">
-        <a href="/chat-page" style="text-decoration:none"><button class="btn primary">Start Consultation</button></a>
-
-        <button class="btn ghost" id="dbOpen">Open Bio-Database</button>
-      </div>
-
-      <div class="features" aria-hidden="true">
-        <div class="feature">Symptom Triage</div>
-        <div class="feature">Diet & Lifestyle Tips</div>
-        <div class="feature">Voice & Export</div>
-      </div>
-
-      <div style="margin-top:18px" aria-hidden="true">
-        <div class="feature" style="display:inline-block;padding:8px 12px;border-radius:10px;margin-right:8px">Uptime • 99.99%</div>
-        <div class="feature" style="display:inline-block;padding:8px 12px;border-radius:10px">Sessions • 1.2k</div>
-      </div>
-
-      <!-- floating decorative frames (photo-like) -->
-      <div class="frame a" aria-hidden="true">
-        <div class="photo">
-          <!-- apple icon -->
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M16 7c0 0-1.5-2-3.5-2S9 7 9 7s-2 2.5-2 5.5C7 17 9 20 12 20s5-3 5-7.5C17 9 16 7 16 7z" fill="#0b76d1"/></svg>
-          <div style="position:absolute;bottom:10px;color:#072031;font-weight:800;font-size:12px">Nutrition</div>
-        </div>
-      </div>
-
-      <div class="frame b" aria-hidden="true">
-        <div class="photo">
-          <!-- gut icon (abstract) -->
-          <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 8c2-4 8-4 10 0 1 2 0 7-3 8" stroke="#00c48c" stroke-width="2" fill="none"/></svg>
-          <div style="position:absolute;bottom:10px;color:#072031;font-weight:800;font-size:12px">Gut Health</div>
-        </div>
-      </div>
-    </section>
-
-    <aside class="panel" aria-labelledby="panel-title">
-      <div class="panel-head">
-        <div>
-          <div id="panel-title" class="panel-title" style="font-weight:900">Live Snapshot</div>
-          <div style="font-size:13px;color:var(--muted)">Real-time chat preview</div>
-        </div>
-        <div style="color:var(--muted)">v3.1</div>
-      </div>
-
-      <div class="mini-chat" aria-hidden="true">
-        <div class="bubble bot">Hello — how did your last meal make you feel?</div>
-        <div class="bubble user">Bloating and mild cramping.</div>
-        <div class="bubble bot">Thanks — did you notice reflux or nausea?</div>
-      </div>
-
-      <div style="margin-top:14px;display:flex;gap:8px">
-        <button class="btn primary">Demo Chat</button>
-        <button class="btn ghost">Export Notes</button>
-      </div>
-    </aside>
-  </div>
+  <footer>
+    Uptime • 99.99% &nbsp; | &nbsp; Sessions • 1.2k <br>
+    © 2025 Cogniverse | All Rights Reserved
+  </footer>
 
   <script>
-    // Subtle parallax on pointer move for background frames & logo; preserve reduced-motion
+    // Subtle parallax on pointer move for decorative blobs & logo
     (function(){
       const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       if(prefersReduced) return;
 
       const logo = document.querySelector('.logo');
-      const frameA = document.querySelector('.frame.a');
-      const frameB = document.querySelector('.frame.b');
+      const blobA = document.querySelector('.floating.a');
+      const blobB = document.querySelector('.floating.b');
 
       document.addEventListener('pointermove', (e)=>{
         const x = (e.clientX / window.innerWidth) - 0.5;
         const y = (e.clientY / window.innerHeight) - 0.5;
-        // gentle transforms
-        if(logo) logo.style.transform = `translate(${x * 6}px, ${y * -6}px)`;
-        if(frameA) frameA.style.transform = `translate(${x * -18}px, ${y * -20}px) rotate(-6deg)`;
-        if(frameB) frameB.style.transform = `translate(${x * 20}px, ${y * 18}px) rotate(8deg)`;
+        if(logo) logo.style.transform = `translate(${x * 10}px, ${y * -10}px)`;
+        if(blobA) blobA.style.transform = `translate(${x * -20}px, ${y * -20}px)`;
+        if(blobB) blobB.style.transform = `translate(${x * 20}px, ${y * 20}px)`;
       });
-
-      // slight entrance
-      setTimeout(()=>{ document.querySelectorAll('.frame').forEach(f=>f.style.opacity = '1'); }, 120);
     })();
+
+    // Original DB open integration preserved
+    document.getElementById('dbOpen').addEventListener('click', function(){
+      // You can keep your original DB modal or function call here
+      console.log('Open Bio-Database clicked');
+    });
   </script>
 </body>
 </html>
