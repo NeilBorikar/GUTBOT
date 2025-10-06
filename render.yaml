@@ -8,12 +8,12 @@ services:
   # Backend (FastAPI + GutBot)
   # --------------------------
   - type: web
-    name: gutbot
+    name: GUTBOT               # ✅ your app name will be https://gutbot.onrender.com
     env: python
     plan: free
-    region: singapore  # 🌍 closest to India
+    region: singapore          # 🌍 closest to India
 
-    rootDir: .  # ✅ since your app & requirements.txt are in repo root
+    rootDir: .                 # ✅ app & requirements.txt are in repo root
 
     buildCommand: |
       pip install --upgrade pip
@@ -23,6 +23,7 @@ services:
 
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
 
+    # 🔑 Environment variables
     envVars:
       - key: ENVIRONMENT
         value: production
@@ -37,19 +38,27 @@ services:
       - key: SENTRY_DSN
         sync: false
       - key: REDIS_URL
-        fromService: gutbot-redis:url
+        fromService:
+          name: gutbot-redis
+          type: redis
+          property: connectionString
 
+    # ⚡ Health check
     healthCheckPath: /health
-    healthCheckIntervalSeconds: 30
-    healthCheckTimeoutSeconds: 10
-    healthCheckSuccessThreshold: 2
-    healthCheckFailureThreshold: 3
 
+    # 📈 Scaling rules
     scaling:
       minInstances: 1
       maxInstances: 2
       targetCPUPercent: 75
 
+    # --------------------------
+    # Frontend hosting (chat UI)
+    # --------------------------
+    staticPublishPath: .        # ✅ root, since index.html and chat.html are in repo root
+    autoDeploy: true
+
+    # 🗂 Logging (persistent)
     disk:
       name: gutbot-logs
       mountPath: /var/log/gutbot
