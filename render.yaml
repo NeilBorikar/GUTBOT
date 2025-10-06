@@ -12,7 +12,7 @@ services:
     env: python
     plan: free
     region: singapore # 🌍 use singapore (closest to India)
-    runtime: python-3.11.8 
+    
 
     rootDir: .                 # ✅ since your app & requirements.txt are in repo root
 
@@ -74,4 +74,5 @@ databases:
     plan: free
     region: singapore
     ipAllowList: []
+
 
