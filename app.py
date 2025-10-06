@@ -197,7 +197,7 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # ---------- Frontend / static files ----------
-FRONTEND_DIR = pathlib.Path(__file__).resolve().parents[1] / "Frontend"
+FRONTEND_DIR = pathlib.Path(__file__).resolve().parent
 
 # sanity check: does the frontend folder exist?
 if not FRONTEND_DIR.exists():
