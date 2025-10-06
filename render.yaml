@@ -10,6 +10,8 @@ services:
     plan: free
     region: singapore
     rootDir: .
+    runtime: python-3.11.9
+
 
     buildCommand: |
       pip install --upgrade pip
@@ -44,3 +46,4 @@ databases:
     plan: free
     region: singapore
     ipAllowList: []
+
