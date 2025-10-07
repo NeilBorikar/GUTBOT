@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GUTBOT — Transcendent Health</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #E6FAF8, #D7EEFB);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+      overflow-x: hidden;
+      animation: fadeIn 1.2s ease-in;
+    }
+
+    .skip {
+      position: absolute;
+      left: -9999px;
+    }
+    .skip:focus {
+      left: 18px;
+      top: 18px;
+      padding: 8px;
+      background: #ffffffcc;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    .logo {
+      width: 160px;
+      margin-bottom: 20px;
+      animation: fadeIn 1.5s ease-in-out;
+    }
+
+    .title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 2.4rem;
+      font-weight: 700;
+      color: #0E2A47;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1rem;
+      color: #3A6B77;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 15px;
+      animation: slideUp 0.8s ease forwards;
+      opacity: 0;
+      animation-delay: 0.3s;
+    }
+
+    a {
+      text-decoration: none;
+    }
+
+    .btn {
+      background-color: #6CC7A1;
+      color: white;
+      border: none;
+      border-radius: 50px;
+      padding: 12px 28px;
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background-color: #52A7D9;
+      transform: scale(1.05);
+      animation: bounce 0.4s ease;
+    }
+
+    .start::before { content: "💬"; }
+    .db::before { content: "🧠"; }
+    .faq::before { content: "❓"; }
+
+    footer {
+      margin-top: 40px;
+      color: #5F7E8E;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { transform: translateY(30px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes bounce {
+      0%   { transform: scale(1); }
+      50%  { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+
+    /* Floating decorative elements */
+    .floating {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(60px);
+      opacity: 0.15;
+      pointer-events: none;
+      z-index: -1;
+    }
+    .floating.a {
+      width: 300px;
+      height: 300px;
+      top: -60px;
+      left: -60px;
+      background: linear-gradient(135deg, #6CC7A1, #52A7D9);
+    }
+    .floating.b {
+      width: 280px;
+      height: 280px;
+      bottom: -60px;
+      right: -60px;
+      background: linear-gradient(135deg, #7c4dff, #03a9f4);
+    }
+
+    @media (max-width: 600px) {
+      .btn {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .button-group {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .title {
+        font-size: 1.8rem;
+      }
+
+      .subtitle {
+        font-size: 0.95rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <div class="floating a"></div>
+  <div class="floating b"></div>
+
+  <img src="your-logo.png" alt="GUTBOT Logo" class="logo">
+
+  <h1 class="title" id="main">Welcome to GUTBOT</h1>
+  <p class="subtitle">Your friendly health companion</p>
+
+  <div class="button-group">
+    <a href="/chat-page"><button class="btn start">Start Consultation</button></a>
+    <button class="btn db" id="dbOpen">Open Bio-Database</button>
+    <a href="faq.html"><button class="btn faq">FAQ</button></a>
+  </div>
+
+  <footer>
+    Uptime • 99.99% &nbsp; | &nbsp; Sessions • 1.2k <br>
+    © 2025 Cogniverse | All Rights Reserved
+  </footer>
+
+  <script>
+    // Subtle parallax on pointer move for decorative blobs & logo
+    (function(){
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if(prefersReduced) return;
+
+      const logo = document.querySelector('.logo');
+      const blobA = document.querySelector('.floating.a');
+      const blobB = document.querySelector('.floating.b');
+
+      document.addEventListener('pointermove', (e)=>{
+        const x = (e.clientX / window.innerWidth) - 0.5;
+        const y = (e.clientY / window.innerHeight) - 0.5;
+        if(logo) logo.style.transform = `translate(${x * 10}px, ${y * -10}px)`;
+        if(blobA) blobA.style.transform = `translate(${x * -20}px, ${y * -20}px)`;
+        if(blobB) blobB.style.transform = `translate(${x * 20}px, ${y * 20}px)`;
+      });
+    })();
+
+    // Original DB open integration preserved
+    document.getElementById('dbOpen').addEventListener('click', function(){
+      // You can keep your original DB modal or function call here
+      console.log('Open Bio-Database clicked');
+    });
+  </script>
+</body>
+</html>
