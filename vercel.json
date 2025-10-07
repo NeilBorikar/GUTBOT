@@ -3,7 +3,8 @@
   "builds": [
     {
       "src": "app.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": { "pythonVersion": "3.11" }
     },
     {
       "src": "public/**/*",
@@ -11,11 +12,17 @@
     }
   ],
   "routes": [
-    { "src": "/chat", "dest": "app.py" },
-    { "src": "/health", "dest": "app.py" },
-    { "src": "/vercel-health", "dest": "app.py" },
-    { "src": "/api/(.*)", "dest": "app.py" },
+    { "src": "^/chat$", "dest": "app.py" },
+    { "src": "^/health$", "dest": "app.py" },
+    { "src": "^/vercel-health$", "dest": "app.py" },
+    { "src": "^/api/(.*)$", "dest": "app.py" },
+
+    { "src": "^/chat-page$", "dest": "/chat.html" },
+    { "src": "^/chat.html$", "dest": "/chat.html" },
+
     { "handle": "filesystem" },
+
+    { "src": "^/$", "dest": "/index.html" },
     { "src": "/.*", "dest": "/index.html" }
   ]
 }
