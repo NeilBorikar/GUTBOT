@@ -27,9 +27,8 @@ import redis
 redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
 redis_client = redis.Redis.from_url(redis_url)
 
-# Example usage
-redis_client.set("test", "Hello GutBot!")
-print(redis_client.get("test"))
+
+
 
 # Try optional integrations
 fastapi_limiter_available = False
@@ -196,54 +195,34 @@ app.add_middleware(
 )
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=()"
+    return response
+
+
 # ---------- Frontend / static files ----------
-FRONTEND_DIR = pathlib.Path(__file__).resolve().parent
+# ---------- Frontend / Static Files (Vercel-Optimized) ----------
+FRONTEND_DIR = pathlib.Path(__file__).resolve().parent / "public"
 
-# sanity check: does the frontend folder exist?
-if not FRONTEND_DIR.exists():
-    logger.warning("Frontend directory does not exist: %s. Static file serving will fail until that folder is created.", FRONTEND_DIR)
-
-# Prefer to mount the `Frontend/static` folder. If it doesn't exist, fallback to mounting entire Frontend
-STATIC_DIR = FRONTEND_DIR / "static"
-if STATIC_DIR.exists():
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
-    logger.info("Mounted static directory: %s -> /static", STATIC_DIR)
+if FRONTEND_DIR.exists():
+    app.mount("/", StaticFiles(directory=FRONTEND_DIR), name="public")
+    logger.info("Mounted /public as static frontend directory")
 else:
-    # If there's no static folder, mount the frontend root as fallback (useful for simple setups).
-    if FRONTEND_DIR.exists():
-        try:
-            app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
-            logger.warning("Static folder not found. Mounted FRONTEND_DIR at /static as a fallback: %s", FRONTEND_DIR)
-        except Exception as e:
-            logger.warning("Could not mount FRONTEND_DIR at /static: %s", e)
-    else:
-        logger.warning("Neither FRONTEND_DIR nor STATIC_DIR exist. Create Frontend/index.html and Frontend/static/ to serve the UI.")
+    logger.warning("Public frontend folder not found at %s. Static file serving will fail until it is created.", FRONTEND_DIR)
 
-# Serve index.html at root (returns 404 if file missing)
-@app.get("/")
-async def serve_index():
-    index_file = FRONTEND_DIR / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
-    logger.error("index.html not found at %s", index_file)
-    raise HTTPException(status_code=404, detail="index.html not found")
-
-# Serve chat page at /chat-page and /chat.html (both routes supported)
+# Optional pretty URL for chat
 @app.get("/chat-page")
-async def serve_chat():
+async def serve_chat_page():
     chat_file = FRONTEND_DIR / "chat.html"
     if chat_file.exists():
         return FileResponse(chat_file)
-    logger.error("chat.html not found at %s", chat_file)
     raise HTTPException(status_code=404, detail="chat.html not found")
 
-@app.get("/chat.html")
-async def serve_chat_html():
-    chat_file = FRONTEND_DIR / "chat.html"
-    if chat_file.exists():
-        return FileResponse(chat_file)
-    logger.error("chat.html not found at %s", chat_file)
-    raise HTTPException(status_code=404, detail="chat.html not found")
 
 
 
@@ -484,10 +463,21 @@ async def delete_session(session_id: str, api_key: str = Depends(get_api_key), c
 # -------------------- Startup time --------------------
 app.state.start_time = time.time()
 
-# -------------------- Run block --------------------
-if __name__ == "__main__":
-    import uvicorn
-    host = os.getenv("HOST", "0.0.0.0")
-    port = int(os.getenv("PORT", "8000"))
-    workers = int(os.getenv("WORKERS", "1"))
-    uvicorn.run("app:app", host=host, port=port, workers=workers, reload=os.getenv("ENVIRONMENT") == "development", log_level="info")
+# -------------------- Vercel Compatibility --------------------
+from fastapi import APIRouter
+
+vercel_router = APIRouter()
+
+@vercel_router.get("/vercel-health")
+async def vercel_health():
+    """
+    Vercel health check endpoint — used during cold starts and build verification.
+    """
+    return {"status": "ok", "message": "GutBot running on Vercel 🚀"}
+
+app.include_router(vercel_router)
+
+# ✅ Expose FastAPI app for Vercel
+app = app
+
+
