@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "public/**/*",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/chat", "dest": "app.py" },
+    { "src": "/health", "dest": "app.py" },
+    { "src": "/vercel-health", "dest": "app.py" },
+    { "src": "/api/(.*)", "dest": "app.py" },
+    { "handle": "filesystem" },
+    { "src": "/.*", "dest": "/index.html" }
+  ]
+}

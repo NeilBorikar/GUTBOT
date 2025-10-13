@@ -1,46 +1,39 @@
 # ==========================
-# Python / FastAPI / GutBot
+# Root .gitignore
 # ==========================
 
 # Virtual environments
 venv/
-Backend/venv/
-.env
 .venv/
+.env
 
 # Logs
 *.log
 logs/
 
-# Cache + compiled Python
+# Python cache
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.pkl
 
-# Models (large files, use Git LFS instead)
+# Models (large)
 *.bin
 *.pt
 *.dll
 *.lib
 
-# Data / temporary outputs
-data/
-medical_data/
-training_data/
-models/
-*.csv
-
-# Editor/IDE junk
+# OS / Editor junk
 .vscode/
 .idea/
-*.swp
-
-# Render/Deployment junk
-*.db
-*.sqlite3
-
-# Mac/Linux OS files
 .DS_Store
 Thumbs.db
+*.swp
+
+# Local-only data (medical JSON)
+gutbot-medical-data/
+
+# Databases / temp
+*.db
+*.sqlite3
