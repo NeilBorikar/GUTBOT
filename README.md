@@ -4,7 +4,7 @@ This repository contains the **backend (FastAPI + ML)** and **frontend (Vercel)*
 
 - 🌐 Frontend: `gutbot-frontend/` → Deployed on Vercel
 - 🧠 Backend: `gutbot-ml-backend/` → Deployed on Railway
-- 📚 Medical Data: Hosted separately via GitHub Pages
+- 📚 Medical Data: Hosted separately via [GitHub Pages](https://github.com/NeilBorikar/gutbot-medical-data)
 
  🚀 Deployment Targets
 Frontend → Vercel
