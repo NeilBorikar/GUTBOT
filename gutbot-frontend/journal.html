@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GUTBOT | Health Journal</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #E6FAF8, #D7EEFB);
+      color: #0E2A47;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #ffffffcc;
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header .left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    header img {
+      width: 40px;
+      height: 40px;
+    }
+
+    header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.35rem;
+      margin: 0;
+      color: #0E2A47;
+    }
+
+    .journal-container {
+      flex: 1;
+      padding: 30px 10%;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .btn {
+      width: 100%;
+      background: linear-gradient(90deg, #6CC7A1, #4AA78E);
+      color: white;
+      font-weight: 600;
+      font-size: 1.1rem;
+      border: none;
+      padding: 14px 0;
+      border-radius: 14px;
+      cursor: pointer;
+      margin-bottom: 20px;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .btn:hover {
+      background: linear-gradient(90deg, #57b08a, #3d8c75);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+    }
+
+    .entry-card {
+      background: linear-gradient(135deg, #ffffffdd, #f0f9f8);
+      border-radius: 20px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+      transition: all 0.3s ease;
+      display: none;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .entry-card.active { display: block; }
+    .entry-card:hover { transform: translateY(-2px); }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .entry-card label {
+      display: block;
+      margin: 12px 0 6px;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .entry-card input,
+    .entry-card select,
+    .entry-card textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid #cfe5ef;
+      margin-bottom: 12px;
+      font-family: 'Inter', sans-serif;
+      font-size: 0.98rem;
+    }
+
+    .entry-card textarea { resize: vertical; min-height: 70px; }
+
+    h2.section-title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.35rem;
+      color: #0E2A47;
+      margin: 30px 0 15px;
+      border-left: 5px solid #6CC7A1;
+      padding-left: 10px;
+    }
+
+    footer {
+      background: #ffffffcc;
+      padding: 18px 24px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #2E3A47;
+      border-top: 1px solid #cfe5ef;
+    }
+
+    footer span { font-weight: 600; color: #6CC7A1; }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.1rem; }
+      .journal-container { padding: 20px 5%; }
+      .btn { font-size: 1rem; padding: 12px 0; }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class="left">
+      <a href="/" title="Back to Home">
+        <img src="/assets/your-logo.png" alt="GUTBOT Logo" class="logo" width="40" height="40" decoding="async">
+      </a>
+      <h1>GUTBOT | Health Journal</h1>
+    </div>
+    <div>📔</div>
+  </header>
+
+  <div class="journal-container">
+    <button class="btn" onclick="toggleForm()">➕ New Daily Entry</button>
+
+    <div class="entry-card" id="entryForm">
+      <label for="date">Date</label>
+      <input type="date" id="date">
+
+      <label for="meals">Meals</label>
+      <textarea id="meals" placeholder="Breakfast, Lunch, Dinner"></textarea>
+
+      <label for="water">Water Intake (liters)</label>
+      <input type="number" id="water" step="0.1" placeholder="e.g., 2.5">
+
+      <label for="sleep">Sleep Hours</label>
+      <input type="number" id="sleep" step="0.1" placeholder="e.g., 7.5">
+
+      <label for="mood">Mood</label>
+      <select id="mood">
+        <option value="">Select Mood</option>
+        <option value="Happy">😊 Happy</option>
+        <option value="Neutral">😐 Neutral</option>
+        <option value="Sad">😔 Sad</option>
+        <option value="Anxious">😟 Anxious</option>
+      </select>
+
+      <label for="medications">Medications / Supplements</label>
+      <textarea id="medications" placeholder="E.g., Vitamin D, Ibuprofen"></textarea>
+
+      <button class="btn" onclick="addEntry()">💾 Save Entry</button>
+    </div>
+
+    <button class="btn" id="toggleEntries" onclick="toggleEntries()">📋 View Previous Entries</button>
+
+    <div id="entriesContainer" style="display:none;">
+      <h2 class="section-title">Previous Entries</h2>
+      <div id="entriesList"></div>
+    </div>
+  </div>
+
+  <footer>
+    ⚠️ <span>Disclaimer:</span> This journal is for personal tracking and general health awareness. It does <b>not</b> replace professional medical advice.
+  </footer>
+
+  <script>
+    function toggleForm(){
+      const form=document.getElementById("entryForm");
+      form.classList.toggle("active");
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    function loadEntries(){
+      const stored = localStorage.getItem("gutbot_journal_entries");
+      const entries = stored ? JSON.parse(stored) : [];
+      const list = document.getElementById("entriesList");
+      list.innerHTML = "";
+
+      if(entries.length === 0){
+        list.innerHTML = "<p>No entries yet. Start by adding one!</p>";
+        return;
+      }
+
+      entries.reverse().forEach(e=>{
+        const card=document.createElement("div");
+        card.className="entry-card active";
+        card.innerHTML=`
+          <strong>Date:</strong> ${e.date}<br>
+          <strong>Meals:</strong> ${e.meals||"-"}<br>
+          <strong>Water Intake:</strong> ${e.water||"-"} L<br>
+          <strong>Sleep:</strong> ${e.sleep||"-"} hrs<br>
+          <strong>Mood:</strong> ${e.mood||"-"}<br>
+          <strong>Medications:</strong> ${e.meds||"-"}
+        `;
+        list.appendChild(card);
+      });
+    }
+
+    function saveEntries(entries){
+      localStorage.setItem("gutbot_journal_entries", JSON.stringify(entries));
+    }
+
+    function addEntry(){
+      const date=document.getElementById("date").value;
+      const meals=document.getElementById("meals").value;
+      const water=document.getElementById("water").value;
+      const sleep=document.getElementById("sleep").value;
+      const mood=document.getElementById("mood").value;
+      const meds=document.getElementById("medications").value;
+      if(!date){alert("Please select a date.");return;}
+
+      const stored = localStorage.getItem("gutbot_journal_entries");
+      const entries = stored ? JSON.parse(stored) : [];
+
+      entries.push({date, meals, water, sleep, mood, meds});
+      saveEntries(entries);
+
+      alert("✅ Entry saved successfully!");
+      document.querySelectorAll("#entryForm input, #entryForm textarea, #entryForm select").forEach(el=>el.value="");
+      document.getElementById("entryForm").classList.remove("active");
+      loadEntries();
+    }
+
+    function toggleEntries(){
+      const container=document.getElementById("entriesContainer");
+      const btn=document.getElementById("toggleEntries");
+      if(container.style.display==="none"){
+        container.style.display="block";
+        btn.textContent="🔽 Hide Previous Entries";
+        loadEntries();
+      } else {
+        container.style.display="none";
+        btn.textContent="📋 View Previous Entries";
+      }
+    }
+
+    window.onload=loadEntries;
+  </script>
+</body>
+</html>

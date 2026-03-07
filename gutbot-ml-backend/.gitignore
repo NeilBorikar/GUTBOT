@@ -1,0 +1,58 @@
+# ===============================
+# 🚀 GutBot ML Backend (Railway)
+# ===============================
+
+# --- Virtual Environments & Env Files ---
+venv/
+.venv/
+.env
+.env.*
+*.env
+
+# --- Python Cache & Compiled Files ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pkl
+
+# --- Logs ---
+*.log
+logs/
+logs/**/*.log
+
+# --- Models (Use Git LFS or remote storage) ---
+*.bin
+*.pt
+*.dll
+*.lib
+models/
+# Optional: keep small model config/tokenizer files
+!models/intent_classifier/config.json
+!models/intent_classifier/tokenizer.json
+
+# --- Data & Datasets ---
+data/
+training_data/
+medical_data/
+gutbot-medical-data/
+*.csv
+*.json
+
+# --- Temporary or Generated Files ---
+tmp/
+cache/
+*.db
+*.sqlite3
+
+# --- Editor / IDE ---
+.vscode/
+.idea/
+*.swp
+
+# --- OS Files ---
+.DS_Store
+Thumbs.db
+
+# --- Other Deployment Junk ---
+runtime_env/

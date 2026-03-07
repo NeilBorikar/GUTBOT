@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GUTBOT — Health FAQs</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Poppins:wght@600&display=swap" rel="stylesheet">
+
+  <style>
+    /* -------- Base Layout -------- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #E6FAF8, #D7EEFB);
+      color: #0E2A47;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      animation: fadeIn 1s ease-in;
+    }
+
+    /* -------- Top Header (like Chat UI) -------- */
+    header {
+      background: #ffffffcc;
+      backdrop-filter: blur(6px);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header .left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    header img {
+      width: 40px;
+      height: 40px;
+    }
+
+    header h1 {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.35rem;
+      margin: 0;
+      color: #0E2A47;
+    }
+
+    header .emoji {
+      font-size: 1.4rem;
+      cursor: default;
+      user-select: none;
+    }
+
+    /* -------- FAQ Section -------- */
+    .faq-container {
+      flex: 1;
+      padding: 24px 5%;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h2.section-title {
+      font-family: 'Poppins', sans-serif;
+      font-size: 1.25rem;
+      color: #0E2A47;
+      margin: 30px 0 14px;
+      border-left: 5px solid #6CC7A1;
+      padding-left: 10px;
+    }
+
+    .faq-item {
+      background: #ffffffcc;
+      border-radius: 14px;
+      margin-bottom: 10px;
+      box-shadow: 0 3px 8px rgba(0,0,0,0.1);
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .faq-question {
+      font-weight: 600;
+      cursor: pointer;
+      padding: 16px 18px;
+      background: #D7F5E9;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: 0.3s;
+      font-size: 1rem;
+    }
+
+    .faq-question:hover {
+      background: #B6E9D7;
+    }
+
+    .faq-question span {
+      font-size: 1.3rem;
+      transition: transform 0.3s ease;
+    }
+
+    .faq-item.active .faq-question span {
+      transform: rotate(90deg);
+    }
+
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      background: white;
+      padding: 0 18px;
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .faq-item.active .faq-answer {
+      max-height: 300px;
+      padding: 14px 18px;
+    }
+
+    /* -------- Footer -------- */
+    footer {
+      background: #ffffffcc;
+      padding: 18px 24px;
+      text-align: center;
+      font-size: 0.9rem;
+      color: #2E3A47;
+      border-top: 1px solid #cfe5ef;
+      box-shadow: 0 -2px 6px rgba(0,0,0,0.05);
+    }
+
+    footer span {
+      font-weight: 600;
+      color: #6CC7A1;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.1rem; }
+      .faq-question { font-size: 0.95rem; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="left">
+      <a href="/" title="Back to Home">
+        <img src="/assets/your-logo.png" alt="GUTBOT Logo" class="logo" width="40" height="40" decoding="async">
+      </a>
+      <h1>GUTBOT | Health FAQs</h1>
+    </div>
+    <div class="emoji">🤖</div>
+  </header>
+
+  <!-- FAQ Section -->
+  <main class="faq-container" id="faqContainer" aria-label="Frequently Asked Questions"></main>
+
+  <!-- Footer -->
+  <footer>
+    ⚠️ <span>Disclaimer:</span> This chatbot provides general health information based on WHO, CDC, and ICMR guidelines.
+    It does <b>not</b> replace professional medical advice, diagnosis, or treatment.
+    For emergencies, call your local emergency number or visit the nearest hospital.
+  </footer>
+
+  <!-- FAQ Data Script -->
+  <script>
+  (function(){
+    const faqData = [
+      { category: "General Health", q: "What are the common symptoms of seasonal flu and how can I prevent it?", a: "Seasonal flu symptoms include fever, sore throat, cough, muscle pain, fatigue, and runny nose. Prevent it by washing hands often, avoiding close contact with sick people, covering your mouth when coughing, and getting a yearly flu vaccine. (WHO & CDC)" },
+      { q: "How much water should I drink in a day according to WHO guidelines?", a: "WHO recommends maintaining proper hydration — generally 2–2.5 liters per day for adults. Needs vary based on activity, climate, and health status. (WHO Nutrition Guidance)" },
+      { q: "What is the normal blood pressure range for adults?", a: "Normal blood pressure is around 120/80 mmHg. Readings consistently above 140/90 may indicate hypertension. (WHO & ICMR)" },
+      { q: "How often should I get a general health check-up?", a: "Adults should get a full health check-up at least once a year to monitor blood pressure, cholesterol, sugar, and BMI. More frequent checks may be needed if you have existing conditions. (ICMR Health Screening Guidelines)" },
+      { q: "What are the warning signs of diabetes?", a: "Frequent urination, excessive thirst, unexplained weight loss, fatigue, and blurred vision are common early signs. A blood sugar test confirms diagnosis. (WHO & ICMR Diabetes Programme)" },
+      { q: "How can I maintain a healthy immune system naturally?", a: "Eat a balanced diet rich in fruits, vegetables, and protein, sleep well, exercise regularly, avoid smoking, and manage stress. (WHO Health Promotion)" },
+      { q: "What are the early symptoms of heart attack or stroke?", a: "Chest pain, shortness of breath, jaw or arm pain, dizziness, or cold sweats can indicate heart attack. Sudden numbness, slurred speech, or vision loss may signal stroke — call emergency services immediately. (WHO & CDC)" },
+      { q: "What is BMI and how is it calculated?", a: "BMI (Body Mass Index) = weight (kg) / height (m²). WHO classifies: <18.5: Underweight, 18.5–24.9: Normal, 25–29.9: Overweight, ≥30: Obese." },
+      { q: "How much physical activity is recommended for adults by WHO?", a: "At least 150 minutes of moderate or 75 minutes of vigorous activity per week, plus muscle-strengthening twice a week. (WHO Physical Activity Guidelines)" },
+      { q: "What foods are good for boosting mental health and focus?", a: "Fruits, leafy greens, nuts, fish rich in omega-3, whole grains, and adequate hydration help maintain cognitive and emotional wellbeing. (WHO Mental Health Promotion)" },
+      { category: "Disease Awareness", q: "What are the symptoms and prevention measures for dengue?", a: "Dengue symptoms: high fever, headache, pain behind eyes, muscle/joint pain, rash. Prevent it by using mosquito repellents, covering exposed skin, and removing stagnant water sources. (ICMR & CDC)" },
+      { q: "How can I protect myself from respiratory infections like COVID-19 or flu?", a: "Wear a mask in crowded areas, wash hands frequently, maintain distance, and stay updated on vaccination. (WHO & MoHFW)" },
+      { q: "What vaccines are recommended for adults in India?", a: "Common adult vaccines include tetanus, influenza, hepatitis B, COVID-19, and HPV (for eligible groups). (ICMR & MoHFW Vaccine Schedule)" },
+      { q: "What is antibiotic resistance and how can it be prevented?", a: "Antibiotic resistance happens when bacteria stop responding to medicines. Prevent it by taking antibiotics only when prescribed and completing the full course. (WHO & CDC AMR Initiative)" },
+      { q: "What should I do if I have mild fever or cough at home?", a: "Stay hydrated, rest, and monitor temperature. If fever persists over 3 days or symptoms worsen, consult a doctor. (ICMR & WHO Home Care Guide)" },
+      { q: "What steps can I take to prevent lifestyle diseases like hypertension?", a: "Eat less salt, exercise daily, maintain healthy weight, avoid tobacco and alcohol, and check blood pressure regularly. (WHO NCD Guidance)" },
+      { category: "Medication & Treatment", q: "Is it safe to self-medicate for common cold or headache?", a: "Avoid self-medicating often. Overuse of painkillers or antibiotics can cause side effects. Always consult a pharmacist or doctor if symptoms persist. (WHO Safe Medication Use)" },
+      { q: "Why is completing an antibiotic course important?", a: "Stopping antibiotics early can allow bacteria to survive and become resistant, making future infections harder to treat. (WHO & CDC)" },
+      { q: "What should I do if I miss a prescribed medicine dose?", a: "Take it as soon as you remember, but skip it if it’s almost time for your next dose. Never double the dose. (ICMR Drug Use Guidelines)" },
+      { q: "Are herbal medicines safe to take along with prescribed drugs?", a: "Some herbal medicines can interact with prescription drugs. Always inform your doctor before combining them. (WHO Traditional Medicine Safety Note)" },
+      { category: "Mental Health", q: "What are the early signs of depression or anxiety?", a: "Persistent sadness, loss of interest, fatigue, sleep issues, and difficulty concentrating. Seek professional help if these last for two weeks or more. (WHO Mental Health Guidance)" },
+      { q: "How can I manage exam or work stress effectively?", a: "Use relaxation techniques like deep breathing, regular breaks, proper sleep, and physical activity. Talking to trusted people also helps. (ICMR Mental Health Division)" },
+      { q: "What should I do if someone I know talks about self-harm?", a: "Stay calm, listen, don’t judge, and encourage them to reach out to a mental health professional or helpline. (WHO Suicide Prevention Resource)" },
+      { q: "How much sleep is considered healthy for different age groups?", a: "Adults: 7–9 hrs; Teens: 8–10 hrs; Children: 9–12 hrs. Consistent sleep improves memory, mood, and immunity. (CDC Sleep Health)" },
+      { q: "Are meditation and breathing exercises scientifically proven to help?", a: "Yes. WHO & ICMR studies show meditation and deep breathing reduce stress, anxiety, and blood pressure. (WHO Mindfulness Studies)" },
+      { category: "Health System", q: "How do I know when to visit a doctor instead of using self-care?", a: "Visit a doctor if symptoms last over 3 days, worsen, or include high fever, breathlessness, chest pain, or severe fatigue. (ICMR & MoHFW)" },
+      { q: "How can I find nearby government health centers or clinics in India?", a: "Use the Health Facility Registry (https://facilityregistry.nhp.gov.in) or call 1075 (National Health Helpline). (MoHFW & Ayushman Bharat)" },
+      { q: "What emergency numbers should I call in case of severe illness or accident?", a: "Dial 108 (ambulance), 112 (emergency), or 102 (maternal & child care) in India. (MoHFW)" },
+      { q: "How do I prepare for a doctor’s appointment or teleconsultation?", a: "Note symptoms, medication list, allergies, and previous reports. Keep your device charged for online consultations. (WHO Telehealth Guide)" },
+      { q: "What should I do if the chatbot tells me to seek emergency care?", a: "Immediately call emergency services or go to the nearest hospital. Do not rely on the chatbot in urgent situations. (WHO AI in Health Ethics Report, 2024)" }
+    ];
+
+    const faqContainer = document.getElementById("faqContainer");
+    let currentCategory = "";
+
+    faqData.forEach(item => {
+      if (item.category && item.category !== currentCategory) {
+        currentCategory = item.category;
+        const title = document.createElement("h2");
+        title.className = "section-title";
+        title.textContent = currentCategory.toUpperCase() + " FAQs";
+        faqContainer.appendChild(title);
+      }
+      const div = document.createElement("div");
+      div.className = "faq-item";
+      div.innerHTML = `
+        <div class="faq-question">${item.q}<span>›</span></div>
+        <div class="faq-answer">${item.a}</div>
+      `;
+      faqContainer.appendChild(div);
+    });
+
+    faqContainer.addEventListener("click", (e) => {
+      const q = e.target.closest(".faq-question");
+      if (q) q.parentElement.classList.toggle("active");
+    });
+  })();
+  </script>
+</body>
+</html>
