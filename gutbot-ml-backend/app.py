@@ -4,7 +4,8 @@ app.py — GutBot Local Backend
 Runs GutBot ML Chatbot + Frontend UI on localhost.
 """
 import sys
-sys.stdout.reconfigure(encoding='utf-8')
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+sys.stderr.reconfigure(encoding='utf-8', errors='replace')
 import os
 import time
 import uuid
@@ -31,6 +32,7 @@ PORT = 8000
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+    encoding="utf-8"
 )
 logger = logging.getLogger("GutBot-Local")
 
@@ -89,7 +91,7 @@ async def startup_event():
     t0 = time.time()
     try:
         app.state.chatbot = HealthChatbot()
-        warmup_text = "hello"
+        warmup_text = "What is influenza?"
         await run_in_threadpool(app.state.chatbot.process_message, "warmup", warmup_text)
         logger.info(f"✅ Chatbot loaded successfully in {(time.time()-t0):.2f}s")
     except Exception as e:
@@ -206,4 +208,4 @@ async def process_chat(request: Request, background: BackgroundTasks):
 if __name__ == "__main__":
     import uvicorn
     logger.info(f"🚀 Starting GutBot Local at http://{HOST}:{PORT}")
-    uvicorn.run("app:app", host=HOST, port=PORT, reload=True)
+    uvicorn.run("app:app", host=HOST, port=PORT, reload=False)

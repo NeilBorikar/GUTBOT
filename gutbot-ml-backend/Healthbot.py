@@ -47,7 +47,7 @@ DISCLAIMER: This system provides general health information only and does not
 """
 
 from __future__ import annotations
-from html import entities
+
 from html import entities
 import os
 from pydoc import text
@@ -58,24 +58,32 @@ import time
 import logging
 import argparse
 import asyncio
-from urllib import response
+
 import uuid
 from dataclasses import dataclass, field
 from typing import List, Dict, Any, Optional, Tuple, Deque
 from enum import Enum
 from datetime import datetime
 from collections import deque, defaultdict
+
 import numpy as np
 from pathlib import Path
-
+from difflib import SequenceMatcher
 from opentelemetry import context
+
+try:
+    import sys
+    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+except Exception:
+    pass
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler("chatbot.log"),
+        logging.FileHandler("chatbot.log", encoding="utf-8"),
         logging.StreamHandler(sys.stdout)
     ]
 )
@@ -371,7 +379,7 @@ class Config:
     EMERGENCY_KEYWORDS = ["heart attack", "stroke", "suicide", "chest pain", "difficulty breathing"]
     
     # Paths
-    DATA_DIR = Path("./data")
+    DATA_DIR = Path("C:/Users/NEIL/projects/public_health_chatbot/gutbot-medical-data/medical_data")
     MODELS_DIR = Path("C:/Users/NEIL/projects/public_health_chatbot/gutbot-ml-backend/models")
     KNOWLEDGE_BASE_DIR = DATA_DIR / "knowledge_base"
     LOGS_DIR = Path("./logs")
@@ -449,7 +457,15 @@ class UserSession:
     last_activity: datetime
     conversation_history: Deque[ConversationTurn] = field(default_factory=deque)
     user_profile: Dict[str, Any] = field(default_factory=dict)
-    
+    diagnostic_state: Dict[str, Any] = field(default_factory=lambda: {
+        "is_active": False,
+        "primary_symptom": None,
+        "candidate_diseases": [],
+        "confirmed_symptoms": [],
+        "negated_symptoms": [],
+        "question_ptr": 0,
+        "last_asked_symptom": None
+    })
     def is_expired(self, timeout_minutes: int = Config.SESSION_TIMEOUT_MINUTES) -> bool:
         return (datetime.now() - self.last_activity).total_seconds() > timeout_minutes * 60
     
@@ -541,7 +557,7 @@ class HealthChatbot:
                     }
 
             
-                    logger.info(f"✅ Loaded fine-tuned intent classifier from {intent_model_path}")
+                    logger.info(f" Loaded fine-tuned intent classifier from {intent_model_path}")
             else:
                 # ⚠️ Fallback to base BERT
                 logger.warning("⚠️ Fine-tuned intent model not found. Loading base model.")
@@ -588,10 +604,10 @@ class HealthChatbot:
                 name="medical_knowledge"
             )
 
-            logger.info(f"✅ ChromaDB knowledge base initialized at: {kb_path}")
+            logger.info(f" ChromaDB knowledge base initialized at: {kb_path}")
 
         except Exception as e:
-            logger.error(f"❌ Failed to initialize knowledge base: {e}")
+            logger.error(f"Failed to initialize knowledge base: {e}")
             self.kb_collection = None  # fallback — prevents attribute errors
 
        
@@ -637,13 +653,16 @@ class HealthChatbot:
                 data = json.load(f)
 
             disease_name = data.get("name", file.stem)
+            symptoms = ", ".join(data.get("related_symptoms", []))
+            description = data.get("description", "")
 
             content = f"""
             Disease: {disease_name}
 
-            Description: {data.get('description', '')}
+           
+            Description: {description}
 
-            Symptoms: {", ".join(data.get('symptoms', []))}
+            Symptoms: {symptoms}
 
             Prevention: {", ".join(data.get('prevention', []))}
 
@@ -682,45 +701,42 @@ class HealthChatbot:
         return self.sessions[user_id]
     
     def process_message(self, user_id: str, message: str) -> Dict[str, Any]:
-        """
-        Process a user message and generate a response.
-        
-        Args:
-            user_id: Unique identifier for the user
-            message: User's message text
-            
-        Returns:
-            Dictionary containing response and metadata
-        """
         start_time = time.time()
-        
-        # Get user session
         session = self.get_session(user_id)
-        
-        # Safety check for emergency situations
-        if self.emergency_protocol.is_emergency(message):
+        cleaned_message = self._preprocess_text(message)
+        msg_lower = cleaned_message.lower().strip()
+
+        if self.emergency_protocol.is_emergency(msg_lower):
             response = self.emergency_protocol.get_emergency_response(message)
             return self._format_response(response, [], Intent(IntentType.EMERGENCY, 1.0), start_time)
+
+        is_yes_no = msg_lower in ["yes", "no", "yeah", "nope", "yep", "not really", "i do", "true", "false"]
         
-        # Preprocess message
-        cleaned_message = self._preprocess_text(message)
-        
-        # Recognize intent
+        if session.diagnostic_state["is_active"] and is_yes_no:
+            is_confirmed = msg_lower in ["yes", "yeah", "yep", "i do", "true"]
+            diag_result = self._handle_diagnostic_answer(session, is_confirmed, start_time)
+            
+            final_resp_text = self.safety_checker.check_response(diag_result["response"])
+            diag_result["response"] = final_resp_text
+            
+            turn = ConversationTurn(
+                user_id=user_id,
+                message=message,
+                response=final_resp_text,
+                timestamp=datetime.now(),
+                intent=Intent(IntentType.SYMPTOM_QUERY, 1.0),
+                context={"diagnostic_step": session.diagnostic_state["question_ptr"]}
+            )
+            session.add_message(turn)
+            return diag_result
+
         intent = self.recognize_intent(cleaned_message)
-        
-        # Extract entities
         entities = self.extract_entities(cleaned_message, intent)
-        
-        # Retrieve relevant knowledge
         context = self.retrieve_knowledge(cleaned_message, intent, entities)
-        
-        # Generate response
+
         response = self.generate_response(cleaned_message, intent, entities, context, session)
-        
-        # Safety check response
         response = self.safety_checker.check_response(response)
-        
-        # Store conversation turn
+
         turn = ConversationTurn(
             user_id=user_id,
             message=message,
@@ -730,8 +746,37 @@ class HealthChatbot:
             context=context
         )
         session.add_message(turn)
-        
+
         return self._format_response(response, entities, intent, start_time)
+
+    def generate_response(self, message: str, intent: Intent, entities: List[Entity], context: Dict[str, Any], session: UserSession) -> str:
+        """Route to appropriate response generator based on intent."""
+        if intent.type == IntentType.DISEASE_INFO:
+            return self._generate_disease_info_response(entities, context)
+        elif intent.type == IntentType.SYMPTOM_QUERY:
+            return self._generate_symptom_response(entities, context, session)
+        elif intent.type == IntentType.PREVENTION:
+            return self._generate_prevention_response(entities, context)
+        elif intent.type == IntentType.TREATMENT:
+            return self._generate_treatment_response(entities, context)
+        elif intent.type == IntentType.CLARIFICATION:
+            return self._generate_clarification_response(session)
+        elif intent.type == IntentType.THANKS:
+            return self._generate_thanks_response()
+        elif intent.type == IntentType.GREETING:
+            return "Hello! I'm GutBot. How can I assist you with your health today?"
+        else:
+            return self._generate_fallback_response(message)
+            
+    def _format_response(self, text: str, entities: List[Entity], intent: Intent, start_time: float) -> Dict[str, Any]:
+        """Format the final response object."""
+        return {
+            "response": text,
+            "intent": intent.type.value if intent else "unknown",
+            "confidence": intent.confidence if intent else 0.0,
+            "entities": [{"text": e.text, "type": e.type.value} for e in entities],
+            "processing_time": round((time.time() - start_time) * 1000, 2)
+        }
     
     def recognize_intent(self, text: str) -> Intent:
         """Recognize the intent behind user message."""
@@ -803,31 +848,61 @@ class HealthChatbot:
         for entity in entities:
 
             if entity.type == EntityType.DISEASE:
-
-                disease = self.medical_kb.get_disease_info(entity.text)
+                disease_name = entity.text
+                disease = self.medical_kb.get_disease_info(disease_name)
 
                 if disease:
                     context["disease_info"].append({
-                        "content": json.dumps(disease, indent=2),
+                        "content": disease,
                         "source": "medical_dataset",
                         "confidence": 0.95
                     })
 
-                prevention = self.medical_kb.get_prevention_information(entity.text)
-                if prevention:
+                preventions = self.medical_kb.get_prevention_for_disease(disease_name)
+
+                for p in preventions:
                     context["prevention_info"].append({
-                        "content": json.dumps(prevention, indent=2),
+                        "content": p,
                         "source": "medical_dataset",
                         "confidence": 0.9
                     })
 
-                treatment = self.medical_kb.get_treatment_information(entity.text)
-                if treatment:
+                treatments = self.medical_kb.get_treatments_for_disease(disease_name)
+
+                for t in treatments:
                     context["treatment_info"].append({
-                        "content": json.dumps(treatment, indent=2),
+                        "content": t,
                         "source": "medical_dataset",
                         "confidence": 0.9
                     })
+                meds = self.medical_kb.get_medications_for_disease(disease_name)
+                for m in meds:
+                    context["treatment_info"].append({
+                    "content": m,
+                    "source": "medical_dataset",
+                    "confidence": 0.9
+                })
+            elif entity.type == EntityType.SYMPTOM:
+
+                symptom_name = entity.text
+
+                symptom_info = self.medical_kb.get_symptom_info(symptom_name)
+
+                if symptom_info:
+                    context["symptom_info"].append({
+                        "content": symptom_info,
+                        "source": "medical_dataset",
+                        "confidence": 0.95
+                    })
+
+                related_diseases = self.medical_kb.get_diseases_for_symptom(symptom_name)
+
+                for d in related_diseases:
+                    context["disease_info"].append({
+                    "content": d,
+                    "source": "medical_dataset",
+                    "confidence": 0.85
+            })
          # ---------- 2 Vector retrieval ----------
         try:
             # Generate query embedding
@@ -860,140 +935,205 @@ class HealthChatbot:
         
         return context
     
-    def generate_response(self, message: str, intent: Intent, entities: List[Entity], 
-                         context: Dict[str, Any], session: UserSession) -> str:
-        """Generate a natural language response."""
-        # Use different strategies based on intent
-        if intent.type == IntentType.GREETING:
-            return self._generate_greeting_response(session)
-        
-        elif intent.type == IntentType.DISEASE_INFO:
-            return self._generate_disease_info_response(entities, context)
-        
-        elif intent.type == IntentType.SYMPTOM_QUERY:
-            return self._generate_symptom_response(entities, context)
-        
-        elif intent.type == IntentType.PREVENTION:
-            return self._generate_prevention_response(entities, context)
-        
-        elif intent.type == IntentType.TREATMENT:
-            return self._generate_treatment_response(entities, context)
-        
-        elif intent.type == IntentType.EMERGENCY:
-            return self.emergency_protocol.get_emergency_response(message)
-        
-        elif intent.type == IntentType.CLARIFICATION:
-            return self._generate_clarification_response(session)
-        
-        elif intent.type == IntentType.THANKS:
-            return self._generate_thanks_response()
-        
-        else:
-            return self._generate_fallback_response(message)
-    
-    def _format_response(self, response: str, entities: List[Entity], 
-                        intent: Intent, start_time: float) -> Dict[str, Any]:
-        """Format the response with metadata."""
-        return {
-            "response": response,
-            "entities": [{"text": e.text, "type": e.type.value, "confidence": e.confidence} 
-                        for e in entities],
-            "intent": {"type": intent.type.value, "confidence": intent.confidence},
-            "timestamp": datetime.now().isoformat(),
-            "processing_time_ms": round((time.time() - start_time) * 1000, 2),
-            "disclaimer": "This information is for educational purposes only. Please consult a healthcare professional for medical advice."
-        }
-    
-    # Helper methods for response generation
-    def _generate_greeting_response(self, session: UserSession) -> str:
-        """Generate a greeting response."""
-        greetings = [
-            "Hello! I'm here to provide information about public health and diseases. How can I help you today?",
-            "Hi there! I'm a health information assistant. What would you like to know about?",
-            "Welcome! I can answer questions about diseases, symptoms, prevention, and treatments. What would you like to know?"
-        ]
-        return np.random.choice(greetings)
-    
-    def _generate_disease_info_response(self, entities: List[Entity], context: Dict[str, Any]) -> str:
-        """Generate response for disease information queries."""
+    def _generate_disease_info_response(self, entities, context):
         disease_entities = [e for e in entities if e.type == EntityType.DISEASE]
-        
-        if not disease_entities and not context["disease_info"]:
-            return "I'd be happy to tell you about a disease. Could you specify which disease you're interested in?"
-        
-        # Get disease name from entities or context
-        disease_name = disease_entities[0].text if disease_entities else "this disease"
-        
-        if context["disease_info"]:
+        if not disease_entities:
+            return "Please specify the disease you want information about."
 
-            data = context["disease_info"][0]["content"]
+        target_name = disease_entities[0].text
+        db_data = self.medical_kb.get_disease_info(target_name)
 
-            return f"""Here is information about {disease_name}:{data}"""
-        else:
-            return f"I don't have specific information about {disease_name} in my knowledge base. Would you like me to search for general information about it?"
+        if not db_data and context.get("disease_info"):
+            db_data = context["disease_info"][0]["content"]
+
+        if not db_data:
+            return f"Please specify the disease you want information about."
+
+        def clean_to_list(field):
+            val = db_data.get(field, [])
+            if isinstance(val, str):
+                return [s.strip() for s in val.split(",")]
+            return val
+
+        name = db_data.get("name", target_name)
+        desc = db_data.get("description", "N/A")
+        causes = clean_to_list("causes")
+        symptoms = clean_to_list("related_symptoms")
+        severity = db_data.get("severity", "N/A")
+
+        prev_list = self.medical_kb.get_prevention_for_disease(target_name)
+        treat_list = self.medical_kb.get_treatments_for_disease(target_name)
+        meds_list = self.medical_kb.get_medications_for_disease(target_name)
+
+        output = f"Here is information about {name}:\n\n"
+        output += f"Description: {desc}\n\n"
+
+        if causes:
+            output += "Causes:\n"
+            for c in causes:
+                output += f"- {c}\n"
+            output += "\n"
+
+        if symptoms:
+            output += "Symptoms:\n"
+            for s in symptoms:
+                output += f"- {s}\n"
+            output += "\n"
+
+        output += f"Severity: {severity}\n"
+
+        if prev_list:
+            output += "Prevention:\n"
+            for p in prev_list:
+                p_val = p.get("name", p.get("description", ""))
+                if p_val:
+                    output += f"- {p_val}\n"
+            output += "\n"
+
+        if treat_list or meds_list:
+            output += "Treatment:\n"
+            combined = []
+            for t in treat_list: combined.append(t.get("name", t.get("description", "")))
+            for m in meds_list: combined.append(m.get("name", m.get("description", "")))
+            for item in list(dict.fromkeys(combined)):
+                if item:
+                    output += f"- {item}\n"
+
+        return output.strip()
     
-    def _generate_symptom_response(self, entities: List[Entity], context: Dict[str, Any]) -> str:
+    def _generate_symptom_response(self, entities, context, session: UserSession):
+        symptom_entities = [e for e in entities if e.type == EntityType.SYMPTOM]
 
-        if not context["disease_info"]:
-            return "I couldn't find symptom information for that disease."
+        if not symptom_entities:
+            return "I understand you're concerned about your symptoms. Could you describe them more specifically, such as where it hurts or how long you've felt this way?"
 
-        data = context["disease_info"][0]["content"]
+        primary_symptom = symptom_entities[0].text
+    
+        related_diseases = self.medical_kb.get_related_diseases(primary_symptom)
+    
+        if not related_diseases:
+            return f"I've noted that you're experiencing {primary_symptom}. To help me understand better, could you tell me about any other signs you've noticed?"
 
-        if "symptoms" not in data:
-            return "Symptom information is not available."
+        session.diagnostic_state.update({
+            "is_active": True,
+            "primary_symptom": primary_symptom,
+            "candidate_diseases": [d['name'] for d in related_diseases],
+            "confirmed_symptoms": [primary_symptom],
+            "negated_symptoms": [],
+            "question_ptr": 0
+        })
 
-        response = "Common Symptoms:\n\n"
+        first_candidate = related_diseases[0]
+        candidate_name = first_candidate.get('name', 'this condition')
+        all_symptoms = first_candidate.get('related_symptoms', [])
+    
+        follow_up_list = [s for s in all_symptoms if s.lower() != primary_symptom.lower()]
+    
+        response = f"I've analyzed your symptom: {primary_symptom}.\n\n"
+    
+        if context.get("symptom_info"):
+            s_data = context["symptom_info"][0]["content"]
+            if isinstance(s_data, dict) and s_data.get("description"):
+                response += f"Note: {s_data['description']}\n\n"
 
-        for s in data["symptoms"][:8]:
-            response += f"• {s}\n"
-
+        if follow_up_list:
+            next_q = follow_up_list[0]
+            session.diagnostic_state["last_asked_symptom"] = next_q
+            response += f"To narrow things down, are you also experiencing **{next_q}**?"
+        else:
+            response += f"This can sometimes be associated with {candidate_name}. Would you like to see the full details for this condition?"
+        
         return response
     
-    def _generate_prevention_response(self, entities: List[Entity], context: Dict[str, Any]) -> str:
-
-        if not context["prevention_info"]:
-            return "I couldn't find prevention information for that disease."
-
-        data = context["prevention_info"][0]["content"]
-
-        response = "Prevention Measures:\n\n"
-
-        if "prevention_methods" in data:
-            for p in data["prevention_methods"][:6]:
-                response += f"• {p}\n"
-
-        elif "prevention" in data:
-            for p in data["prevention"][:6]:
-                response += f"• {p}\n"
-
-        else:
-            response += "Specific prevention methods are not listed."
-
-        return response
+    def _generate_prevention_response(self, entities, context):
+        disease_entities = [e for e in entities if e.type == EntityType.DISEASE]
     
-    def _generate_treatment_response(self, entities: List[Entity], context: Dict[str, Any]) -> str:
+        if not disease_entities:
+            if context.get("prevention_info"):
+                res = "Here is some general prevention advice:\n\n"
+                for item in context["prevention_info"][:3]:
+                    p = item["content"]
+                    res += f"- {p.get('name', p.get('description'))}\n"
+                return res
+            return "Which disease or symptom would you like prevention advice for?"
 
-        if not context["treatment_info"]:
-            return "I couldn't find treatment information for that disease."
+        target_name = disease_entities[0].text
+        db_prev = self.medical_kb.get_prevention_for_disease(target_name)
 
-        data = context["treatment_info"][0]["content"]
+        if not db_prev:
+            return f"I couldn't find specific prevention protocols for {target_name} in my medical database."
 
-        response = "Treatment Options:\n\n"
+        output = f"Prevention and protection for {target_name}:\n\n"
+        for item in db_prev:
+            name = item.get("name")
+            desc = item.get("description")
+            if name:
+                output += f"- {name}\n"
+            if desc and desc != name:
+                output += f"  ({desc})\n"
+            
+        return output.strip()
 
-        if "treatments" in data:
-            for t in data["treatments"][:6]:
-                response += f"• {t}\n"
+  
+    
+    def _generate_treatment_response(self, entities, context):
+        disease_entities = [e for e in entities if e.type == EntityType.DISEASE]
+    
+        if not disease_entities:
+            return "Please specify which condition you are seeking treatment information for."
 
-        elif "medications" in data:
-            for m in data["medications"][:6]:
-                response += f"• {m}\n"
+        target_name = disease_entities[0].text
+    
+        treats = self.medical_kb.get_treatments_for_disease(target_name)
+        meds = self.medical_kb.get_medications_for_disease(target_name)
 
+        if not treats and not meds:
+            return f"I don't have recorded treatment or medication data for {target_name}. Please consult a healthcare professional."
+
+        output = f"Management and Treatment for {target_name}:\n\n"
+    
+        combined = []
+        for t in treats: combined.append(t.get("name", t.get("description", "")))
+        for m in meds: combined.append(m.get("name", m.get("description", "")))
+    
+        unique_items = list(dict.fromkeys([i for i in combined if i]))
+
+        for item in unique_items:
+            output += f"- {item}\n"
+
+        output += "\nIMPORTANT: Medications should only be taken under professional supervision."
+        return output.strip()
+    
+    def _handle_diagnostic_answer(self, session, confirmed, start_time):
+        state = session.diagnostic_state
+        last_symptom = state["last_asked_symptom"]
+
+        if confirmed:
+            state["confirmed_symptoms"].append(last_symptom)
         else:
-            response += "Specific treatments are not listed."
+            state["negated_symptoms"].append(last_symptom)
 
-        response += "\n\n⚠️ Always consult a healthcare professional before taking any treatment."
+        current_candidate = state["candidate_diseases"][0]
+        disease_data = self.medical_kb.get_disease_info(current_candidate)
+    
+        related = disease_data.get("related_symptoms", [])
+        remaining = [s for s in related if s not in state["confirmed_symptoms"] and s not in state["negated_symptoms"]]
 
-        return response
+        if remaining and state["question_ptr"] < 3:
+            state["question_ptr"] += 1
+            state["last_asked_symptom"] = remaining[0]
+            msg = f"I see. Besides what you've mentioned, do you also have **{remaining[0]}**?"
+            return self._format_response(msg, [], Intent(IntentType.SYMPTOM_QUERY, 1.0), start_time)
+    
+        state["is_active"] = False
+    
+        full_report = self._generate_disease_info_response(
+            [Entity(text=current_candidate, type=EntityType.DISEASE, start_pos=0, end_pos=0)], 
+            {}
+        )
+    
+        final_msg = f"Based on your symptoms, it matches the profile for **{current_candidate}**.\n\n{full_report}"
+        return self._format_response(final_msg, [], Intent(IntentType.DISEASE_INFO, 1.0), start_time)
     
     def _generate_clarification_response(self, session: UserSession) -> str:
         """Ask for clarification when intent is unclear."""
@@ -1035,26 +1175,84 @@ class HealthChatbot:
         }
         return mapping.get(spacy_label)
     
-    def _extract_medical_entities(self, text: str) -> List[Entity]:
-        """Dictionary-based extraction of diseases from the dataset."""
+    from difflib import SequenceMatcher
+
+    def _extract_medical_entities(self, text: str, threshold: float = 0.8) -> List[Entity]:
+        """
+        Advanced Hybrid Entity Extraction Engine.
+        Combines Exact Phrase Matching, Fuzzy N-Gram Analysis, and Token-level Similarity.
+        """
         entities = []
         text_lower = text.lower()
+        # Normalize the input to remove punctuation that might mess up matching
+        clean_text = re.sub(r'[^\w\s]', ' ', text_lower)
+        tokens = clean_text.split()
 
+        # 1. THE "DISEASE DICTIONARY" SCAN (Multi-word Phrase Matching)
+        # We check if any known disease name exists as a substring first
         for disease in self.disease_dictionary:
-
-            pattern = rf"\b{re.escape(disease)}\b"
-
-            for match in re.finditer(pattern, text_lower):
-
+            if disease in clean_text:
+                start_idx = clean_text.find(disease)
                 entities.append(Entity(
-                text=match.group(),
-                type=EntityType.DISEASE,
-                start_pos=match.start(),
-                end_pos=match.end(),
-                confidence=0.95
+                    text=disease,
+                    type=EntityType.DISEASE,
+                    start_pos=start_idx,
+                    end_pos=start_idx + len(disease),
+                    confidence=1.0 # Exact match is gold standard
                 ))
 
-        return entities
+            # 2. THE "FUZZY N-GRAM" SCAN (Catching typos and partials)
+        # If we didn't find a perfect match, we look for 'shadow' matches
+        if not entities:
+         # Check single words and 2-word pairs (N-grams)
+            search_windows = []
+            for i in range(len(tokens)):
+                search_windows.append(tokens[i]) # Unigram: "dengu"
+                if i < len(tokens) - 1:
+                    search_windows.append(f"{tokens[i]} {tokens[i+1]}") # Bigram: "high fever"
+
+            for candidate in search_windows:
+                for known_disease in self.disease_dictionary:
+                    similarity = SequenceMatcher(None, candidate, known_disease).ratio()
+                
+                    if similarity >= threshold:
+                        entities.append(Entity(
+                            text=known_disease, # IMPORTANT: Map back to the DB KEY
+                            type=EntityType.DISEASE,
+                            start_pos=clean_text.find(candidate),
+                            end_pos=clean_text.find(candidate) + len(candidate),
+                            confidence=round(similarity, 2)
+                        ))
+
+        # 3. SYMPTOM DETECTION (Crucial for your Questionnaire logic)
+        # We pull from the 'symptoms' category in your KnowledgeBase
+        for symptom_key in self.medical_kb.kb["symptoms"].keys():
+            if symptom_key in clean_text:
+                entities.append(Entity(
+                    text=symptom_key,
+                    type=EntityType.SYMPTOM,
+                    start_pos=clean_text.find(symptom_key),
+                    end_pos=clean_text.find(symptom_key) + len(symptom_key),
+                    confidence=0.9
+                ))
+
+        # 4. OVERLAP RESOLUTION (Deduplication)
+        # If we found "Cancer" and "Lung Cancer", we keep the most specific one
+        entities.sort(key=lambda x: len(x.text), reverse=True)
+        final_entities = []
+        covered_ranges = []
+
+        for ent in entities:
+            is_covered = False
+            for start, end in covered_ranges:
+                if ent.start_pos >= start and ent.end_pos <= end:
+                    is_covered = True
+                    break
+            if not is_covered:
+                final_entities.append(ent)
+                covered_ranges.append((ent.start_pos, ent.end_pos))
+
+        return final_entities
     
     def _rule_based_intent(self, text: str) -> Intent:
         """Rule-based intent classification as fallback."""
@@ -1378,7 +1576,7 @@ class FallbackKnowledgeBase:
         
         return None
 
-# --- REPLACE the whole MedicalKnowledgeBase class with this ---
+
 from pathlib import Path
 import re, json, unicodedata, heapq
 from collections import defaultdict
@@ -1525,28 +1723,65 @@ class MedicalKnowledgeBase:
         return re.sub(r"\s+", " ", text)
 
     def _build_indices(self):
-        logger.info("Building search indices...")
-        # symptom -> diseases
+        """
+        High-performance inverted indexing for lightning-fast disease/symptom lookup.
+        Features: Data sanitization, Set-based uniqueness, and memory-efficient keyword mapping.
+        """
+        logger.info("🚀 Initiating God-Level Index Construction...")
+        start_time = time.time()
+
+        # Reset indices to ensure a clean state
+        self._indices["symptom_to_diseases"].clear()
+        self._indices["disease_to_prevention"].clear()
+        self._indices["disease_to_treatments"].clear()
+        self._indices["disease_to_medications"].clear()
+        self._indices["keyword_index"].clear()
+
+        # 1. Map Symptoms -> Diseases (The Core for your Questionnaire)
         for dk, d in self.kb["diseases"].items():
-            for s in d["data"].get("symptoms", []):
-                self._indices["symptom_to_diseases"][self._normalize_text(s)].add(dk)
-        # disease -> prevention/treatments/medications
-        for pk, p in self.kb["prevention"].items():
-            for dz in p["data"].get("effective_against", []):
-                self._indices["disease_to_prevention"][self._normalize_text(dz)].append(p["data"])
-        for tk, t in self.kb["treatments"].items():
-            for dz in t["data"].get("used_for", []):
-                self._indices["disease_to_treatments"][self._normalize_text(dz)].append(t["data"])
-        for mk, m in self.kb["medications"].items():
-            for dz in m["data"].get("treats", []):
-                self._indices["disease_to_medications"][self._normalize_text(dz)].append(m["data"])
-        # inverted keyword index
+            # DATA SANITIZATION: Handle both list and string formats in JSON
+            raw_symptoms = d["data"].get("related_symptoms", [])
+            if isinstance(raw_symptoms, str):
+                raw_symptoms = [s.strip() for s in raw_symptoms.split(",")]
+
+            for s in raw_symptoms:
+                norm_s = self._normalize_text(s)
+                if norm_s:
+                # FIX: Merged lines to prevent the 'list object has no attribute add' crash
+                    self._indices["symptom_to_diseases"][norm_s].add(dk)
+
+    # 2. Map Diseases -> Supportive Info (Prevention, Treatment, Meds)
+    # Optimized using a reusable internal mapping helper
+        self._map_category_to_disease("prevention", "effective_against", "disease_to_prevention")
+        self._map_category_to_disease("treatments", "used_for", "disease_to_treatments")
+        self._map_category_to_disease("medications", "uses", "disease_to_medications")
+
+    # 3. Global Inverted Keyword Index (For general search)
+    # Uses set comprehension for faster processing
         for category, items in self.kb.items():
             for key, wrap in items.items():
-                for word in self._extract_indexable_text(wrap["data"]).split():
-                    w = self._normalize_text(word)
-                    if len(w) > 2:
+                content_text = self._extract_indexable_text(wrap["data"])
+                # Remove short words (stop words) and duplicates in one pass
+                words = {self._normalize_text(w) for w in content_text.split() if len(w) > 2}
+                for w in words:
+                    if w:
                         self._indices["keyword_index"][w].add((category, key))
+
+        elapsed = time.time() - start_time
+        logger.info(f"✅ Indexing complete in {elapsed:.4f}s. GutBot is now 'Self-Aware'.")
+
+    def _map_category_to_disease(self, kb_cat, data_field, index_key):
+        """Helper to link supplemental data (like Meds) back to a primary disease key."""
+        for key, wrap in self.kb[kb_cat].items():
+            # Ensure we handle single strings or lists of target diseases
+            targets = wrap["data"].get(data_field, [])
+            if isinstance(targets, str):
+                targets = [targets]
+            
+            for target_dz in targets:
+                norm_dz = self._normalize_text(target_dz)
+                if norm_dz:
+                    self._indices[index_key][norm_dz].append(wrap["data"])
 
     def _extract_indexable_text(self, data: Any) -> str:
         if isinstance(data, str): return data
@@ -1599,6 +1834,68 @@ class MedicalKnowledgeBase:
             if nk in k or k in nk:
                 return self.kb[category][k]["data"]
         return None
+    def get_prevention_for_disease(self, disease_name):
+
+        disease = self._normalize_text(disease_name)
+
+        results = []
+
+        for item in self.kb["prevention"].values():
+
+            data = item["data"]
+
+            diseases = [self._normalize_text(d) for d in data.get("effective_against", [])]
+
+            if disease in diseases:
+                results.append(data)
+
+        return results
+    def get_treatments_for_disease(self, disease_name):
+
+        disease = self._normalize_text(disease_name)
+
+        results = []
+
+        for item in self.kb["treatments"].values():
+
+            data = item["data"]
+
+            diseases = [self._normalize_text(d) for d in data.get("used_for", [])]
+
+            if disease in diseases:
+                results.append(data)
+
+        return results
+    
+    def get_medications_for_disease(self, disease_name):
+        disease = self._normalize_text(disease_name)
+
+        results = []
+
+        for item in self.kb["medications"].values():
+
+            data = item["data"]
+
+            diseases = [self._normalize_text(d) for d in data.get("uses", [])]
+
+            if disease in diseases:
+                results.append(data)
+
+        return results
+    def get_diseases_for_symptom(self, symptom):
+
+        symptom = self._normalize_text(symptom)
+
+        results = []
+
+        for item in self.kb["symptoms"].values():
+
+            data = item["data"]
+
+            if symptom == self._normalize_text(data.get("symptom","")):
+                results.extend(data.get("possible_diseases", []))
+
+        return results
     
 def train_intent_classifier(args):
     """Train the intent classification model."""
@@ -1615,14 +1912,14 @@ def train_intent_classifier(args):
 
 
 # ✅ Make chatbot easily importable by other files
-chatbot = HealthChatbot()
+#chatbot = HealthChatbot()
 
 def chat_cli():
     """Command-line chat interface."""
     print("Public Health Chatbot - Command Line Interface")
     print("Type 'quit' to exit, 'clear' to clear history")
     print("=" * 50)
-    
+    chatbot = HealthChatbot()
     user_id = str(uuid.uuid4())
     
     while True:

@@ -4,9 +4,10 @@ from torch.utils.data import DataLoader, Dataset
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
-    AdamW,
     get_linear_schedule_with_warmup
 )
+
+from torch.optim import AdamW
 import json
 from pathlib import Path
 from sklearn.model_selection import train_test_split
