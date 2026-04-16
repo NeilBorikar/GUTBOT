@@ -1211,9 +1211,21 @@ class HealthChatbot:
                 if i < len(tokens) - 1:
                     search_windows.append(f"{tokens[i]} {tokens[i+1]}") # Bigram: "high fever"
 
+            stop_words = {"fever", "disease", "syndrome", "disorder", "infection", "virus", "type", "of", "the", "a", "an"}
+            
             for candidate in search_windows:
                 for known_disease in self.disease_dictionary:
-                    similarity = SequenceMatcher(None, candidate, known_disease).ratio()
+                    base_similarity = SequenceMatcher(None, candidate, known_disease).ratio()
+                    
+                    # Compute similarity ignoring generic words so "dengue" strongly matches "dengue fever"
+                    cleaned_candidate = " ".join([w for w in candidate.split() if w not in stop_words])
+                    cleaned_known = " ".join([w for w in known_disease.split() if w not in stop_words])
+                    
+                    clean_similarity = 0
+                    if cleaned_candidate and cleaned_known:
+                        clean_similarity = SequenceMatcher(None, cleaned_candidate, cleaned_known).ratio()
+                        
+                    similarity = max(base_similarity, clean_similarity)
                 
                     if similarity >= threshold:
                         entities.append(Entity(
