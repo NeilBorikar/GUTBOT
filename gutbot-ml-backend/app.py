@@ -21,6 +21,7 @@ from starlette.concurrency import run_in_threadpool
 
 # ---- Import your ML Chatbot Core ----
 from public_health_chatbot import HealthChatbotService as HealthChatbot
+from translator import detect_language, translate_to_english, translate_from_english
 
 
 # ===============================================================
@@ -168,33 +169,44 @@ async def process_chat(request: Request, background: BackgroundTasks):
     data = await request.json()
     message = data.get("message", "").strip()
     session_id = data.get("session_id") or str(uuid.uuid4())
+    # Optional: frontend can override target language ("en" or "hi")
+    forced_lang = data.get("lang", "").strip().lower() or None
 
     if not message:
         raise HTTPException(status_code=400, detail="Empty message")
 
+    # --- Language detection & translate-in ---
+    detected_lang = forced_lang or detect_language(message)
+    english_message = translate_to_english(message, detected_lang) if detected_lang != "en" else message
+
     t0 = time.time()
     try:
-        raw = await run_in_threadpool(app.state.chatbot.process_message, session_id, message)
+        raw = await run_in_threadpool(app.state.chatbot.process_message, session_id, english_message)
         elapsed = (time.time() - t0) * 1000
 
         # Log in background
         def _log():
             short = message[:100].replace("\n", " ")
-            logger.info(f"[{session_id}] {short} | {elapsed:.1f}ms")
+            logger.info(f"[{session_id}][{detected_lang}] {short} | {elapsed:.1f}ms")
         background.add_task(_log)
 
         response_text = ""
         if isinstance(raw, dict):
             response_text = raw.get("response", "⚠️ No response generated.")
         else:
-                response_text = str(raw)
+            response_text = str(raw)
+
+        # --- Translate-out: if user wrote in Hindi, reply in Hindi ---
+        if detected_lang and detected_lang != "en":
+            response_text = translate_from_english(response_text, detected_lang)
 
         return JSONResponse({
-                "response": response_text,
-                "session_id": session_id,
-                "timestamp": datetime.utcnow().isoformat(),
-                "processing_time_ms": round(elapsed, 2),
-            })
+            "response": response_text,
+            "session_id": session_id,
+            "detected_lang": detected_lang,
+            "timestamp": datetime.utcnow().isoformat(),
+            "processing_time_ms": round(elapsed, 2),
+        })
 
         
 

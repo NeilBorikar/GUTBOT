@@ -410,6 +410,7 @@ class EntityType(Enum):
     PERSON = "person"
     DATE = "date"
     NUMBER = "number"
+    PREVENTION = "prevention"
 
 @dataclass
 class Entity:
@@ -459,8 +460,10 @@ class UserSession:
     user_profile: Dict[str, Any] = field(default_factory=dict)
     diagnostic_state: Dict[str, Any] = field(default_factory=lambda: {
         "is_active": False,
+        "waiting_for_more_symptoms": False,
         "primary_symptom": None,
         "candidate_diseases": [],
+        "candidate_scores": {},
         "confirmed_symptoms": [],
         "negated_symptoms": [],
         "question_ptr": 0,
@@ -655,6 +658,9 @@ class HealthChatbot:
             disease_name = data.get("name", file.stem)
             symptoms = ", ".join(data.get("related_symptoms", []))
             description = data.get("description", "")
+            ayurvedic = data.get("ayurvedic_homeopathic", {})
+            ayur_note = ayurvedic.get("note", "")
+            ayur_remedies = ", ".join(ayurvedic.get("supportive_remedies", []))
 
             content = f"""
             Disease: {disease_name}
@@ -667,6 +673,9 @@ class HealthChatbot:
             Prevention: {", ".join(data.get('prevention', []))}
 
             Treatment: {", ".join(data.get('treatment', []))}
+            
+            Ayurvedic/Homeopathic Note: {ayur_note}
+            Ayurvedic/Homeopathic Remedies: {ayur_remedies}
             """
 
             documents.append(content)
@@ -710,28 +719,64 @@ class HealthChatbot:
             response = self.emergency_protocol.get_emergency_response(message)
             return self._format_response(response, [], Intent(IntentType.EMERGENCY, 1.0), start_time)
 
-        is_yes_no = msg_lower in ["yes", "no", "yeah", "nope", "yep", "not really", "i do", "true", "false"]
-        
-        if session.diagnostic_state["is_active"] and is_yes_no:
-            is_confirmed = msg_lower in ["yes", "yeah", "yep", "i do", "true"]
-            diag_result = self._handle_diagnostic_answer(session, is_confirmed, start_time)
+        if session.diagnostic_state["is_active"]:
+            intent = Intent(IntentType.SYMPTOM_QUERY, 1.0)
+            entities = self.extract_entities(cleaned_message, intent)
+            symptom_entities = [e for e in entities if e.type == EntityType.SYMPTOM]
             
-            final_resp_text = self.safety_checker.check_response(diag_result["response"])
-            diag_result["response"] = final_resp_text
+            msg_words = msg_lower.split()
             
-            turn = ConversationTurn(
-                user_id=user_id,
-                message=message,
-                response=final_resp_text,
-                timestamp=datetime.now(),
-                intent=Intent(IntentType.SYMPTOM_QUERY, 1.0),
-                context={"diagnostic_step": session.diagnostic_state["question_ptr"]}
-            )
-            session.add_message(turn)
-            return diag_result
+            def fuzzy_check(words, targets, threshold=0.85):
+                for word in words:
+                    for target in targets:
+                        if word == target: return True
+                        if len(word) > 2 and SequenceMatcher(None, word, target).ratio() >= threshold:
+                            return True
+                return False
+
+            is_yes = fuzzy_check(msg_words, ["yes", "yeah", "yep", "true", "do", "yesss"])
+            is_no = fuzzy_check(msg_words, ["no", "nope", "false", "not", "don't", "dont", "noooo"])
+            
+            if is_yes or is_no or symptom_entities:
+                is_confirmed = is_yes and not is_no
+                diag_result = self._handle_diagnostic_answer(session, is_confirmed, symptom_entities, start_time)
+                
+                final_resp_text = self.safety_checker.check_response(diag_result["response"])
+                diag_result["response"] = final_resp_text
+                
+                turn = ConversationTurn(
+                    user_id=user_id,
+                    message=message,
+                    response=final_resp_text,
+                    timestamp=datetime.now(),
+                    intent=Intent(IntentType.SYMPTOM_QUERY, 1.0),
+                    context={"diagnostic_step": session.diagnostic_state["question_ptr"]}
+                )
+                session.add_message(turn)
+                return diag_result
+
+        if session.diagnostic_state.get("waiting_for_more_symptoms"):
+            intent = Intent(IntentType.SYMPTOM_QUERY, 1.0)
+            entities = self.extract_entities(cleaned_message, intent)
+            if not entities:
+                response = "I'm still having trouble determining the exact medical symptom from your description. Could you mention a specific symptom like 'fever', 'headache', or 'stomach pain'?"
+                return self._format_response(response, [], intent, start_time)
+            
+            context = self.retrieve_knowledge(cleaned_message, intent, entities)
+            response = self.generate_response(cleaned_message, intent, entities, context, session)
+            return self._format_response(response, entities, intent, start_time)
 
         intent = self.recognize_intent(cleaned_message)
         entities = self.extract_entities(cleaned_message, intent)
+        
+        has_disease = any(e.type == EntityType.DISEASE for e in entities)
+        has_symptom = any(e.type == EntityType.SYMPTOM for e in entities)
+
+        if intent.type == IntentType.DISEASE_INFO and not has_disease and has_symptom:
+            intent = Intent(IntentType.SYMPTOM_QUERY, intent.confidence)
+        elif intent.type == IntentType.SYMPTOM_QUERY and not has_symptom and has_disease:
+            intent = Intent(IntentType.DISEASE_INFO, intent.confidence)
+            
         context = self.retrieve_knowledge(cleaned_message, intent, entities)
 
         response = self.generate_response(cleaned_message, intent, entities, context, session)
@@ -999,14 +1044,26 @@ class HealthChatbot:
                 if item:
                     output += f"- {item}\n"
 
+        ayurvedic = db_data.get("ayurvedic_homeopathic")
+        if ayurvedic:
+            output += "\nAyurvedic & Homeopathic Support:\n"
+            note = ayurvedic.get("note")
+            if note:
+                output += f"Note: {note}\n"
+            remedies = ayurvedic.get("supportive_remedies", [])
+            for r in remedies:
+                output += f"- {r}\n"
+
         return output.strip()
     
     def _generate_symptom_response(self, entities, context, session: UserSession):
         symptom_entities = [e for e in entities if e.type == EntityType.SYMPTOM]
 
         if not symptom_entities:
+            session.diagnostic_state["waiting_for_more_symptoms"] = True
             return "I understand you're concerned about your symptoms. Could you describe them more specifically, such as where it hurts or how long you've felt this way?"
 
+        session.diagnostic_state["waiting_for_more_symptoms"] = False
         primary_symptom = symptom_entities[0].text
     
         related_diseases = self.medical_kb.get_related_diseases(primary_symptom)
@@ -1018,14 +1075,19 @@ class HealthChatbot:
             "is_active": True,
             "primary_symptom": primary_symptom,
             "candidate_diseases": [d['name'] for d in related_diseases],
+            "candidate_scores": {d['name']: 1 for d in related_diseases},
             "confirmed_symptoms": [primary_symptom],
             "negated_symptoms": [],
             "question_ptr": 0
         })
 
-        first_candidate = related_diseases[0]
+        best_candidate_name = max(session.diagnostic_state["candidate_scores"].items(), key=lambda x: x[1])[0]
+        first_candidate = next((d for d in related_diseases if d['name'] == best_candidate_name), related_diseases[0])
         candidate_name = first_candidate.get('name', 'this condition')
+        
         all_symptoms = first_candidate.get('related_symptoms', [])
+        if isinstance(all_symptoms, str):
+            all_symptoms = [s.strip() for s in all_symptoms.split(",")]
     
         follow_up_list = [s for s in all_symptoms if s.lower() != primary_symptom.lower()]
     
@@ -1071,6 +1133,18 @@ class HealthChatbot:
                 output += f"- {name}\n"
             if desc and desc != name:
                 output += f"  ({desc})\n"
+
+        db_data = self.medical_kb.get_disease_info(target_name)
+        if db_data:
+            ayurvedic = db_data.get("ayurvedic_homeopathic")
+            if ayurvedic:
+                output += "\nAyurvedic & Homeopathic Support:\n"
+                note = ayurvedic.get("note")
+                if note:
+                    output += f"Note: {note}\n"
+                remedies = ayurvedic.get("supportive_remedies", [])
+                for r in remedies:
+                    output += f"- {r}\n"
             
         return output.strip()
 
@@ -1101,10 +1175,22 @@ class HealthChatbot:
         for item in unique_items:
             output += f"- {item}\n"
 
+        db_data = self.medical_kb.get_disease_info(target_name)
+        if db_data:
+            ayurvedic = db_data.get("ayurvedic_homeopathic")
+            if ayurvedic:
+                output += "\nAyurvedic & Homeopathic Support:\n"
+                note = ayurvedic.get("note")
+                if note:
+                    output += f"Note: {note}\n"
+                remedies = ayurvedic.get("supportive_remedies", [])
+                for r in remedies:
+                    output += f"- {r}\n"
+
         output += "\nIMPORTANT: Medications should only be taken under professional supervision."
         return output.strip()
     
-    def _handle_diagnostic_answer(self, session, confirmed, start_time):
+    def _handle_diagnostic_answer(self, session, confirmed, new_symptoms, start_time):
         state = session.diagnostic_state
         last_symptom = state["last_asked_symptom"]
 
@@ -1113,26 +1199,70 @@ class HealthChatbot:
         else:
             state["negated_symptoms"].append(last_symptom)
 
-        current_candidate = state["candidate_diseases"][0]
-        disease_data = self.medical_kb.get_disease_info(current_candidate)
-    
-        related = disease_data.get("related_symptoms", [])
+        def clean_to_list(val):
+            if isinstance(val, str):
+                return [s.strip() for s in val.split(",")]
+            return val if isinstance(val, list) else []
+
+        for sym_entity in new_symptoms:
+            sym_text = sym_entity.text
+            if sym_text not in state["confirmed_symptoms"] and sym_text != last_symptom:
+                state["confirmed_symptoms"].append(sym_text)
+                for disease_name in state["candidate_diseases"]:
+                    disease_data = self.medical_kb.get_disease_info(disease_name)
+                    if not disease_data: continue
+                    related = [s.lower() for s in clean_to_list(disease_data.get("related_symptoms", []))]
+                    if sym_text.lower() in related:
+                        state["candidate_scores"][disease_name] += 1
+                        
+        # Rescore candidates based on the answer
+        for disease_name in state["candidate_diseases"]:
+            disease_data = self.medical_kb.get_disease_info(disease_name)
+            if not disease_data:
+                continue
+            related = clean_to_list(disease_data.get("related_symptoms", []))
+            related_lower = [s.lower() for s in related]
+            
+            if last_symptom.lower() in related_lower:
+                if confirmed:
+                    state["candidate_scores"][disease_name] += 1
+                else:
+                    state["candidate_scores"][disease_name] -= 1
+            else:
+                if confirmed:
+                    state["candidate_scores"][disease_name] -= 1
+
+        state["question_ptr"] += 1
+
+        # Re-rank diseases based on updated scores
+        sorted_candidates = sorted(state["candidate_scores"].items(), key=lambda item: item[1], reverse=True)
+        if not sorted_candidates:
+            state["is_active"] = False
+            return self._format_response("I cannot determine the condition based on the symptoms provided.", [], Intent(IntentType.SYMPTOM_QUERY, 1.0), start_time)
+            
+        best_candidate = sorted_candidates[0][0]
+        disease_data = self.medical_kb.get_disease_info(best_candidate)
+        
+        related = []
+        if disease_data:
+            related = clean_to_list(disease_data.get("related_symptoms", []))
+            
         remaining = [s for s in related if s not in state["confirmed_symptoms"] and s not in state["negated_symptoms"]]
 
-        if remaining and state["question_ptr"] < 3:
-            state["question_ptr"] += 1
+        # Stop condition: 5 questions max, or no remaining symptoms
+        if remaining and state["question_ptr"] < 5:
             state["last_asked_symptom"] = remaining[0]
-            msg = f"I see. Besides what you've mentioned, do you also have **{remaining[0]}**?"
+            msg = f"I see. To help narrow this down further, do you also have **{remaining[0]}**?"
             return self._format_response(msg, [], Intent(IntentType.SYMPTOM_QUERY, 1.0), start_time)
     
         state["is_active"] = False
     
         full_report = self._generate_disease_info_response(
-            [Entity(text=current_candidate, type=EntityType.DISEASE, start_pos=0, end_pos=0)], 
+            [Entity(text=best_candidate, type=EntityType.DISEASE, start_pos=0, end_pos=0)], 
             {}
         )
     
-        final_msg = f"Based on your symptoms, it matches the profile for **{current_candidate}**.\n\n{full_report}"
+        final_msg = f"Based on your symptoms, it matches the profile for **{best_candidate}** best.\n\n{full_report}"
         return self._format_response(final_msg, [], Intent(IntentType.DISEASE_INFO, 1.0), start_time)
     
     def _generate_clarification_response(self, session: UserSession) -> str:
@@ -1211,7 +1341,7 @@ class HealthChatbot:
                 if i < len(tokens) - 1:
                     search_windows.append(f"{tokens[i]} {tokens[i+1]}") # Bigram: "high fever"
 
-            stop_words = {"fever", "disease", "syndrome", "disorder", "infection", "virus", "type", "of", "the", "a", "an"}
+            stop_words = {"fever", "disease", "syndrome", "disorder", "infection", "virus", "type", "of", "the", "a", "an", "ayurvedic", "homeopathic"}
             
             for candidate in search_windows:
                 for known_disease in self.disease_dictionary:
@@ -1238,19 +1368,103 @@ class HealthChatbot:
 
         # 3. SYMPTOM DETECTION (Crucial for your Questionnaire logic)
         # We pull from the 'symptoms' category in your KnowledgeBase
-        for symptom_key in self.medical_kb.kb["symptoms"].keys():
+        
+        # Exact matching
+        matched_symptoms = set()
+        symptom_keys = list(self.medical_kb.kb["symptoms"].keys())
+        
+        for symptom_key in symptom_keys:
             if symptom_key in clean_text:
+                matched_symptoms.add(symptom_key)
                 entities.append(Entity(
                     text=symptom_key,
                     type=EntityType.SYMPTOM,
                     start_pos=clean_text.find(symptom_key),
                     end_pos=clean_text.find(symptom_key) + len(symptom_key),
-                    confidence=0.9
+                    confidence=1.0
                 ))
+
+        # Fuzzy matching for symptoms (Catching typos like 'fevvver', 'stmoach')
+        for i in range(len(tokens)):
+            unigram = tokens[i]
+            bigram = f"{tokens[i]} {tokens[i+1]}" if i < len(tokens) - 1 else ""
+            
+            for sym in symptom_keys:
+                if sym in matched_symptoms:
+                    continue
+                
+                # Check unigram
+                if len(sym.split()) == 1 and len(unigram) > 3:
+                    if SequenceMatcher(None, unigram, sym).ratio() > 0.8:
+                        matched_symptoms.add(sym)
+                        entities.append(Entity(text=sym, type=EntityType.SYMPTOM, start_pos=clean_text.find(unigram), end_pos=clean_text.find(unigram) + len(unigram), confidence=0.85))
+                        continue
+                        
+                # Check bigram
+                if bigram and len(sym.split()) == 2:
+                    if SequenceMatcher(None, bigram, sym).ratio() > 0.8:
+                        matched_symptoms.add(sym)
+                        entities.append(Entity(text=sym, type=EntityType.SYMPTOM, start_pos=clean_text.find(tokens[i]), end_pos=clean_text.find(tokens[i+1]) + len(tokens[i+1]), confidence=0.85))
+
+        # Semantic matching for complex descriptions using SentenceTransformer
+        if hasattr(self, 'sentence_model') and self.sentence_model:
+            try:
+                if not hasattr(self, 'symptom_embeddings'):
+                    self.known_symptoms_list = list(self.medical_kb.kb["symptoms"].keys())
+                    if self.known_symptoms_list:
+                        self.symptom_embeddings = self.sentence_model.encode(self.known_symptoms_list)
+                    else:
+                        self.symptom_embeddings = None
+                        
+                if self.symptom_embeddings is not None:
+                    from sentence_transformers import util
+                    doc = self.nlp(text)
+                    chunks = [c.text.lower() for c in doc.noun_chunks]
+                    search_texts = [clean_text] + chunks
+                    
+                    user_emb = self.sentence_model.encode(search_texts)
+                    cos_scores = util.cos_sim(user_emb, self.symptom_embeddings)
+                    
+                    for i in range(len(search_texts)):
+                        top_results = torch.topk(cos_scores[i], k=min(3, len(self.known_symptoms_list)))
+                        
+                        for score_tensor, idx_tensor in zip(top_results[0], top_results[1]):
+                            score = score_tensor.item()
+                            if score > 0.65: # Threshold for semantic match
+                                matched_symptom = self.known_symptoms_list[idx_tensor.item()]
+                                if matched_symptom not in matched_symptoms:
+                                    matched_symptoms.add(matched_symptom)
+                                    start_idx = clean_text.find(search_texts[i])
+                                    entities.append(Entity(
+                                        text=matched_symptom,
+                                        type=EntityType.SYMPTOM,
+                                        start_pos=start_idx if start_idx != -1 else 0,
+                                        end_pos=(start_idx + len(search_texts[i])) if start_idx != -1 else len(clean_text),
+                                        confidence=round(score, 2)
+                                    ))
+            except Exception as e:
+                logger.warning(f"Semantic symptom extraction failed: {e}")
+
+        # 3.5 PREVENTION DETECTION (Fuzzy matching)
+        prevention_keys = list(self.medical_kb.kb["prevention"].keys())
+        for i in range(len(tokens)):
+            unigram = tokens[i]
+            bigram = f"{tokens[i]} {tokens[i+1]}" if i < len(tokens) - 1 else ""
+            
+            for prev in prevention_keys:
+                # Check unigram
+                if len(prev.split()) == 1 and len(unigram) > 3:
+                    if SequenceMatcher(None, unigram, prev).ratio() > 0.85:
+                        entities.append(Entity(text=prev, type=EntityType.PREVENTION, start_pos=clean_text.find(unigram), end_pos=clean_text.find(unigram) + len(unigram), confidence=0.85))
+                
+                # Check bigram
+                if bigram and len(prev.split()) == 2:
+                    if SequenceMatcher(None, bigram, prev).ratio() > 0.85:
+                        entities.append(Entity(text=prev, type=EntityType.PREVENTION, start_pos=clean_text.find(tokens[i]), end_pos=clean_text.find(tokens[i+1]) + len(tokens[i+1]), confidence=0.85))
 
         # 4. OVERLAP RESOLUTION (Deduplication)
         # If we found "Cancer" and "Lung Cancer", we keep the most specific one
-        entities.sort(key=lambda x: len(x.text), reverse=True)
+        entities.sort(key=lambda x: (x.confidence, len(x.text)), reverse=True)
         final_entities = []
         covered_ranges = []
 
